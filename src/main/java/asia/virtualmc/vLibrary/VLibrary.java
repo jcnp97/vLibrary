@@ -6,8 +6,7 @@ public final class VLibrary extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        // Plugin startup logic
-
+        getLogger().info("vLibrary has been enabled!");
     }
 
     @Override
