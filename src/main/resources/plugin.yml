@@ -1,0 +1,4 @@
+name: vLibrary
+version: '1.0'
+main: asia.virtualmc.vLibrary.VLibrary
+api-version: '1.21'
