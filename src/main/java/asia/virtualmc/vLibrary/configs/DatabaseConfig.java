@@ -9,21 +9,25 @@ import java.io.File;
 import java.util.logging.Level;
 
 public class DatabaseConfig {
-    private String host;
-    private int port;
-    private String databaseName;
-    private String userName;
-    private String password;
 
-    public void readDatabaseFile(@NotNull Plugin plugin) {
-        File dbConfigFile = new File(plugin.getDataFolder(), "database.yml");
-        String pluginName = "[" + plugin.getName() + "] ";
+    private static String host;
+    private static int port;
+    private static String databaseName;
+    private static String userName;
+    private static String password;
+    private static boolean isLoaded = false;
+
+    public static void readDatabaseFile(Plugin vlib) {
+        if (isLoaded) return;
+
+        File dbConfigFile = new File(vlib.getDataFolder(), "database.yml");
+        String pluginName = "[" + vlib.getName() + "] ";
 
         if (!dbConfigFile.exists()) {
             try {
-                plugin.saveResource("database.yml", false);
+                vlib.saveResource("database.yml", false);
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, pluginName + "Failed to save database.yml", e);
+                vlib.getLogger().log(Level.SEVERE, pluginName + "Failed to save database.yml", e);
                 return;
             }
         }
@@ -35,33 +39,36 @@ public class DatabaseConfig {
             databaseName = dbConfig.getString("mysql.database", "minecraft");
             userName = dbConfig.getString("mysql.username", "root");
             password = dbConfig.getString("mysql.password");
+            isLoaded = true;
+
+            vlib.getLogger().info(pluginName + "Loaded database.yml successfully!");
 
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, pluginName + "Error reading database.yml", e);
+            vlib.getLogger().log(Level.SEVERE, pluginName + "Error reading database.yml", e);
         }
     }
 
     @NotNull
-    public String getHost() {
+    public static String getHost() {
         return host;
     }
 
-    public int getPort() {
+    public static int getPort() {
         return port;
     }
 
     @NotNull
-    public String getDatabaseName() {
+    public static String getDatabaseName() {
         return databaseName;
     }
 
     @NotNull
-    public String getUsername() {
+    public static String getUsername() {
         return userName;
     }
 
     @NotNull
-    public String getPassword() {
+    public static String getPassword() {
         return password;
     }
 }

@@ -9,9 +9,21 @@ public class ConsoleMessageUtil {
 
     private static final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    public static void sendConsoleMessage(String miniMessageText) {
+    public static void pluginPrint(String miniMessageText) {
         CommandSender console = Bukkit.getConsoleSender();
-        Component message = miniMessage.deserialize(miniMessageText);
+        Component message = miniMessage.deserialize("<#00FFA>[vLibrary] " + miniMessageText);
+        console.sendMessage(message);
+    }
+
+    public static void print(String miniMessageText) {
+        CommandSender console = Bukkit.getConsoleSender();
+        Component message = miniMessage.deserialize("<#08FBBA>" + miniMessageText);
+        console.sendMessage(message);
+    }
+
+    public static void printSevere(String miniMessageText) {
+        CommandSender console = Bukkit.getConsoleSender();
+        Component message = miniMessage.deserialize("<#FF0000>" + miniMessageText);
         console.sendMessage(message);
     }
 }
