@@ -6,7 +6,11 @@ public class DigitUtils {
         return Math.round(value * scale) / scale;
     }
 
-    public static String formattedNumber(double value) {
+    public static String formattedTwoDecimals(double value) {
         return String.format("%,.2f", value);
+    }
+
+    public static String formattedNoDecimals(double value) {
+        return String.format("%,d", (int) value);
     }
 }

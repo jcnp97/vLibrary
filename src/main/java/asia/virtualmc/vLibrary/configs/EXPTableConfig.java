@@ -1,7 +1,7 @@
 package asia.virtualmc.vLibrary.configs;
 
+import asia.virtualmc.vLibrary.VLibrary;
 import asia.virtualmc.vLibrary.utils.ConsoleMessageUtil;
-import asia.virtualmc.vLibrary.var.GlobalVariables;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -11,29 +11,20 @@ import java.io.File;
 import java.util.*;
 
 public class EXPTableConfig {
-    private final Plugin plugin;
-    public static List<Integer> ARCH_EXP_TABLE;
-    public static List<Integer> FISH_EXP_TABLE;
-    public static List<Integer> MINE_EXP_TABLE;
-    public static List<Integer> INV_EXP_TABLE;
+    private final VLibrary vlib;
     public static List<Integer> DEF_EXP_TABLE;
 
     public EXPTableConfig(@NotNull ConfigManager configManager) {
-        this.plugin = configManager.getVlib();
-
+        this.vlib = configManager.getVlib();
         DEF_EXP_TABLE = loadDefaultTable();
-        ARCH_EXP_TABLE = loadEXPTable(GlobalVariables.archPlugin, "vArchaeology");
-        FISH_EXP_TABLE = loadEXPTable(GlobalVariables.fishPlugin, "vFishing");
-        MINE_EXP_TABLE = loadEXPTable(GlobalVariables.minePlugin, "vMining");
-        INV_EXP_TABLE = loadEXPTable(GlobalVariables.invPlugin, "vInvention");
     }
 
     private List<Integer> loadDefaultTable() {
-        File defFile = new File(plugin.getDataFolder(), "default-experience.yml");
+        File defFile = new File(vlib.getDataFolder(), "default-experience.yml");
 
         if (!defFile.exists()) {
             ConsoleMessageUtil.printSevere("[vLibrary] Missing default-experience.yml. Creating a new one with default values.");
-            plugin.saveResource("default-experience.yml", false);
+            vlib.saveResource("default-experience.yml", false);
         }
 
         FileConfiguration expConfig = YamlConfiguration.loadConfiguration(defFile);
@@ -68,7 +59,7 @@ public class EXPTableConfig {
         return Collections.unmodifiableList(tempList);
     }
 
-    private List<Integer> loadEXPTable(Plugin plugin, String pluginName) {
+    public static List<Integer> loadEXPTable(Plugin plugin, String pluginName) {
         if (plugin == null) {
             ConsoleMessageUtil.printSevere("[vLibrary] " + pluginName + " not found! Using default exp table.");
             return DEF_EXP_TABLE;

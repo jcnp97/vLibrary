@@ -17,8 +17,13 @@ public class ConsoleMessageUtil {
 
     public static void print(String miniMessageText) {
         CommandSender console = Bukkit.getConsoleSender();
-        Component message = miniMessage.deserialize("<#08FBBA>" + miniMessageText);
+        Component message = miniMessage.deserialize(miniMessageText);
         console.sendMessage(message);
+    }
+
+    public static void printLegacy(String miniMessageText) {
+        CommandSender console = Bukkit.getConsoleSender();
+        console.sendMessage(miniMessageText);
     }
 
     public static void printSevere(String miniMessageText) {

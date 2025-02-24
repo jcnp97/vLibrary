@@ -35,18 +35,26 @@
               <relocations>
                 <relocation>
                   <pattern>com.zaxxer.hikari</pattern>
-                  <shadedPattern>asia.virtualmc.vArchaeology.libs.hikaricp</shadedPattern>
+                  <shadedPattern>asia.virtualmc.vLibrary.libs.hikaricp</shadedPattern>
                   <includes>
                     <include>com.zaxxer.hikari.**</include>
                   </includes>
                 </relocation>
                 <relocation>
                   <pattern>dev.jorel.commandapi</pattern>
-                  <shadedPattern>asia.virtualmc.vArchaeology.libs.commandapi</shadedPattern>
+                  <shadedPattern>asia.virtualmc.vLibrary.libs.commandapi</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.github.stefvanschie.inventoryframework</pattern>
-                  <shadedPattern>asia.virtualmc.vArchaeology.libs.inventoryframework</shadedPattern>
+                  <shadedPattern>asia.virtualmc.vLibrary.libs.inventoryframework</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.github.ben-manes.caffeine</pattern>
+                  <shadedPattern>asia.virtualmc.vLibrary.libs.caffeine</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>dev.dejvokep.boostedyaml</pattern>
+                  <shadedPattern>asia.virtualmc.vLibrary.libs.boostedyaml</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
@@ -67,6 +75,10 @@
     <repository>
       <id>codemc-repo</id>
       <url>https://repo.codemc.io/repository/maven-public/</url>
+    </repository>
+    <repository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
     </repository>
     <repository>
       <id>jitpack</id>
@@ -106,6 +118,12 @@
       <groupId>com.frengor</groupId>
       <artifactId>ultimateadvancementapi</artifactId>
       <version>2.4.3</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.retrooper</groupId>
+      <artifactId>packetevents-spigot</artifactId>
+      <version>2.7.0</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>

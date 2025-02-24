@@ -1,0 +1,18 @@
+guiSettings:
+  invisible-model-data: 10367
+  # GUI Titles
+  salvage-gui-title: "§f"
+  comp-gui-title: "§f"
+  trait-gui-title: "§f"
+  trait-up-gui-title: "§f"
+  rank-gui-title: "§f"
+  sell-gui-title: "§f𜺯"
+  confirm-gui-title: "§f"
+  collection-title: "§f"
+  collection-next-title: "§f"
+  collection-prev-title: "§f"
+  crafting-station-title: "§f"
+  talent-tree-title: "§f"
+  # ARCHAEOLOGY EXCLUSIVES
+  artefact-interact-title: "§f"
+  artefact-restore-gui-title: "§f"

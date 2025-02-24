@@ -19,26 +19,27 @@ public class EXPDisplayUtils {
                                          int nextLevelExp,
                                          double addedExp,
                                          int currentLevel) {
-        UUID uuid = player.getUniqueId();
         float progress = (float) currentExp / Math.max(nextLevelExp, 1);
-        double hourlyExp = DigitUtils.roundToPrecision(addedExp * 360, 2);
-        String percentProgress = DigitUtils.formattedNumber(Math.min(100.0, progress * 100.0));
+        double hourlyExp = DigitUtils.roundToPrecision(addedExp * 240, 2);
+        String percentProgress = DigitUtils.formattedTwoDecimals(Math.min(100.0, progress * 100.0));
 
         Component bossBarText = Component.text()
-                .append(Component.text(skillName + currentLevel, NamedTextColor.WHITE))
+                .append(Component.text(skillName + " Lv. " + currentLevel, NamedTextColor.WHITE))
                 .append(Component.text(" | ", NamedTextColor.GRAY))
                 .append(Component.text(percentProgress + "%", NamedTextColor.YELLOW))
                 .append(Component.text(" | ", NamedTextColor.GRAY))
                 .append(Component.text("+" + addedExp + " EXP", NamedTextColor.GREEN))
-                .append(Component.text(" (" + DigitUtils.formattedNumber(hourlyExp) + ")", NamedTextColor.GREEN))
+                .append(Component.text(" | ", NamedTextColor.GRAY))
+                .append(Component.text(DigitUtils.formattedNoDecimals(hourlyExp) + " XP/HR", NamedTextColor.RED))
                 .build();
 
         BossBar bossBar = BossBar.bossBar(
                 bossBarText,
-                Math.max(progress, 1.0f),
+                0.0f,
                 BossBar.Color.YELLOW,
                 BossBar.Overlay.PROGRESS
         );
+        bossBar.progress(Math.min(progress, 1.0f));
 
         player.showBossBar(bossBar);
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> player.hideBossBar(bossBar), 100L);
@@ -47,13 +48,26 @@ public class EXPDisplayUtils {
     public static void showEXPActionBar(@NotNull Player player,
                                         double currentExp,
                                         double expGain,
+                                        double bonusXP,
                                         int nextLevelExp) {
-        Component actionBarText = Component.text()
-                .append(Component.text("+" + expGain + " Archaeology EXP ", NamedTextColor.GREEN))
-                .append(Component.text("(" + DigitUtils.formattedNumber(currentExp), NamedTextColor.GRAY))
-                .append(Component.text("/" + DigitUtils.formattedNumber(nextLevelExp) + ")", NamedTextColor.GRAY))
-                .build();
 
-        player.sendActionBar(actionBarText);
+        currentExp /= 100000;
+        nextLevelExp /= 100000;
+
+        if (bonusXP > 0) {
+            Component actionBarText = Component.text()
+                    .append(Component.text("+" + expGain + " EXP (+" + bonusXP + " Bonus EXP) ", NamedTextColor.GREEN))
+                    .append(Component.text("(" + DigitUtils.formattedTwoDecimals(currentExp) + "K", NamedTextColor.GRAY))
+                    .append(Component.text("/" + DigitUtils.formattedTwoDecimals(nextLevelExp) + "K EXP)", NamedTextColor.GRAY))
+                    .build();
+            player.sendActionBar(actionBarText);
+        } else {
+            Component actionBarText = Component.text()
+                    .append(Component.text("+" + expGain + " EXP ", NamedTextColor.GREEN))
+                    .append(Component.text("(" + DigitUtils.formattedTwoDecimals(currentExp) + "K", NamedTextColor.GRAY))
+                    .append(Component.text("/" + DigitUtils.formattedTwoDecimals(nextLevelExp) + "K EXP)", NamedTextColor.GRAY))
+                    .build();
+            player.sendActionBar(actionBarText);
+        }
     }
 }
