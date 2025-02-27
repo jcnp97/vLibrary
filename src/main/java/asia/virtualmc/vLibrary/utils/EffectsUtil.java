@@ -1,6 +1,5 @@
 package asia.virtualmc.vLibrary.utils;
 
-import asia.virtualmc.vLibrary.VLibrary;
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
 import com.fren_gor.ultimateAdvancementAPI.advancement.display.AdvancementFrameType;
 
@@ -22,15 +21,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class EffectsUtil {
-//    private final VLibrary vlib;
-//    private final UltimateAdvancementAPI uaapi;
-
-//    public EffectsUtil(VLibrary vlib) {
-//        this.vlib = vlib;
-//        this.uaapi = UltimateAdvancementAPI.getInstance(vlib);
-//    }
 
     public static void spawnFireworks(@NotNull Plugin plugin, @NotNull Player player, int amount, long interval) {
         if (!player.isOnline()) {
@@ -208,5 +202,23 @@ public class EffectsUtil {
         MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
         Component component = MINI_MESSAGE.deserialize(message);
         player.sendActionBar(component);
+    }
+
+    public static List<String> convertListToNewFont(List<String> inputList) {
+        return inputList.stream()
+                .map(EffectsUtil::convertString)
+                .collect(Collectors.toList());
+    }
+
+    private static String convertString(String input) {
+        String NORMAL = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String CONVERTED = "ᴀʙᴄᴅᴇғɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+        StringBuilder converted = new StringBuilder();
+        for (char ch : input.toCharArray()) {
+            int index = NORMAL.indexOf(ch);
+            converted.append(index != -1 ? CONVERTED.charAt(index) : ch);
+        }
+        return converted.toString();
     }
 }

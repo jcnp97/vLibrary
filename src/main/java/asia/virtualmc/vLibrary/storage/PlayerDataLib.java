@@ -20,7 +20,6 @@ import java.util.UUID;
 public class PlayerDataLib {
     private final Plugin plugin;
     private final DatabaseLib databaseLib;
-    //private final EffectsUtil effectsUtil;
     private static final int MAX_EXP = 2_147_483_647;
     private static final int MIN_LEVEL = 1;
     private static final int MAX_LEVEL = 120;
@@ -28,7 +27,6 @@ public class PlayerDataLib {
     public PlayerDataLib(@NotNull StorageManagerLib storageManager) {
         this.plugin = storageManager.getMain();
         this.databaseLib = storageManager.getDatabaseLib();
-        //this.effectsUtil = storageManager.getEffectsUtil();
     }
 
     public static class PlayerStats {
@@ -44,13 +42,10 @@ public class PlayerDataLib {
         public int charismaTrait;
         public int karmaTrait;
         public int dexterityTrait;
-        public double data1;
-        public double data2;
-        public double data3;
 
         public PlayerStats(String name, double exp, double bxp, double xpm, int level, int luck,
                            int traitPoints, int talentPoints, int wisdomTrait, int charismaTrait,
-                           int karmaTrait, int dexterityTrait, double data1, double data2, double data3) {
+                           int karmaTrait, int dexterityTrait) {
             this.name = name;
             this.exp = exp;
             this.bxp = bxp;
@@ -63,9 +58,6 @@ public class PlayerDataLib {
             this.charismaTrait = charismaTrait;
             this.karmaTrait = karmaTrait;
             this.dexterityTrait = dexterityTrait;
-            this.data1 = data1;
-            this.data2 = data2;
-            this.data3 = data3;
         }
     }
 
@@ -86,9 +78,6 @@ public class PlayerDataLib {
                              "charismaTrait INT DEFAULT 0," +
                              "karmaTrait INT DEFAULT 0," +
                              "dexterityTrait INT DEFAULT 0," +
-                             "data1 DECIMAL(5,2) DEFAULT 0.00," +
-                             "data2 DECIMAL(5,2) DEFAULT 0.00," +
-                             "data3 DECIMAL(5,2) DEFAULT 0.00," +
                              "lastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         ) {
             ps.execute();
@@ -111,9 +100,6 @@ public class PlayerDataLib {
             int charisma,
             int karma,
             int dexterity,
-            double data1,
-            double data2,
-            double data3,
             String tableName,
             String prefix
     ) {
@@ -124,7 +110,7 @@ public class PlayerDataLib {
                              "playerXPM = ?, playerLevel = ?, playerLuck = ?, " +
                              "traitPoints = ?, talentPoints = ?, wisdomTrait = ?, " +
                              "charismaTrait = ?, karmaTrait = ?, dexterityTrait = ?, " +
-                             "data1 = ?, data2 = ?, data3 = ?, lastUpdated = CURRENT_TIMESTAMP " +
+                             "lastUpdated = CURRENT_TIMESTAMP " +
                              "WHERE playerUUID = ?")
         ) {
             ps.setString(1, name);
@@ -139,10 +125,7 @@ public class PlayerDataLib {
             ps.setInt(10, charisma);
             ps.setInt(11, karma);
             ps.setInt(12, dexterity);
-            ps.setDouble(13, data1);
-            ps.setDouble(14, data2);
-            ps.setDouble(15, data3);
-            ps.setString(16, uuid.toString());
+            ps.setString(13, uuid.toString());
 
             int rowsAffected = ps.executeUpdate();
             if (rowsAffected == 0) {
@@ -169,7 +152,7 @@ public class PlayerDataLib {
                 "playerXPM = ?, playerLevel = ?, playerLuck = ?, " +
                 "traitPoints = ?, talentPoints = ?, wisdomTrait = ?, " +
                 "charismaTrait = ?, karmaTrait = ?, dexterityTrait = ?, " +
-                "data1 = ?, data2 = ?, data3 = ?, lastUpdated = CURRENT_TIMESTAMP " +
+                "lastUpdated = CURRENT_TIMESTAMP " +
                 "WHERE playerUUID = ?";
 
         try (Connection conn = databaseLib.getDataSource().getConnection();
@@ -194,10 +177,7 @@ public class PlayerDataLib {
                 ps.setInt(10, stats.charismaTrait);
                 ps.setInt(11, stats.karmaTrait);
                 ps.setInt(12, stats.dexterityTrait);
-                ps.setDouble(13, stats.data1);
-                ps.setDouble(14, stats.data2);
-                ps.setDouble(15, stats.data3);
-                ps.setString(16, uuid.toString());
+                ps.setString(13, uuid.toString());
 
                 ps.addBatch();
                 batchSize++;
@@ -227,9 +207,9 @@ public class PlayerDataLib {
                     "INSERT INTO " + tableName + " (" +
                             "playerUUID, playerName, playerEXP, playerBXP, playerXPM, " +
                             "playerLevel, playerLuck, traitPoints, talentPoints, wisdomTrait, " +
-                            "charismaTrait, karmaTrait, dexterityTrait, data1, data2, data3" +
+                            "charismaTrait, karmaTrait, dexterityTrait" +
                             ") " +
-                            "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? " +
+                            "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? " +
                             "WHERE NOT EXISTS (SELECT 1 FROM " + tableName + " WHERE playerUUID = ?)";
 
             try (PreparedStatement ps = conn.prepareStatement(insertQuery)) {
@@ -246,10 +226,7 @@ public class PlayerDataLib {
                 ps.setInt(11, 0);
                 ps.setInt(12, 0);
                 ps.setInt(13, 0);
-                ps.setDouble(14, 0);
-                ps.setDouble(15, 0);
-                ps.setDouble(16, 0);
-                ps.setString(17, uuid.toString());
+                ps.setString(14, uuid.toString());
 
                 ps.executeUpdate();
                 conn.commit();
@@ -285,10 +262,7 @@ public class PlayerDataLib {
                             rs.getInt("wisdomTrait"),
                             rs.getInt("charismaTrait"),
                             rs.getInt("karmaTrait"),
-                            rs.getInt("dexterityTrait"),
-                            rs.getInt("data1"),
-                            rs.getInt("data2"),
-                            rs.getInt("data3")
+                            rs.getInt("dexterityTrait")
                     );
                 }
             }
@@ -313,10 +287,7 @@ public class PlayerDataLib {
                             rs.getInt("wisdomTrait"),
                             rs.getInt("charismaTrait"),
                             rs.getInt("karmaTrait"),
-                            rs.getInt("dexterityTrait"),
-                            rs.getInt("data1"),
-                            rs.getInt("data2"),
-                            rs.getInt("data3")
+                            rs.getInt("dexterityTrait")
                     );
                 }
             }
@@ -333,9 +304,6 @@ public class PlayerDataLib {
                 1,
                 0,
                 1,
-                0,
-                0,
-                0,
                 0,
                 0,
                 0,
@@ -425,39 +393,6 @@ public class PlayerDataLib {
             case SUBTRACT -> { return Math.max(0, currentTP - value); }
             case SET -> { return value; }
             default -> { return currentTP; }
-        }
-    }
-
-    public double getNewData1(@NotNull EnumsLib.UpdateType type, double currentData, double value) {
-        if (value <= 0) return currentData;
-
-        switch (type) {
-            case ADD -> { return currentData + value; }
-            case SUBTRACT -> { return Math.max(0, currentData - value); }
-            case SET -> { return value; }
-            default -> { return currentData; }
-        }
-    }
-
-    public double getNewData2(@NotNull EnumsLib.UpdateType type, double currentData, int value) {
-        if (value <= 0) return currentData;
-
-        switch (type) {
-            case ADD -> { return currentData + value; }
-            case SUBTRACT -> { return Math.max(0, currentData - value); }
-            case SET -> { return value; }
-            default -> { return currentData; }
-        }
-    }
-
-    public double getNewData3(@NotNull EnumsLib.UpdateType type, double currentData, int value) {
-        if (value <= 0) return currentData;
-
-        switch (type) {
-            case ADD -> { return currentData + value; }
-            case SUBTRACT -> { return Math.max(0, currentData - value); }
-            case SET -> { return value; }
-            default -> { return currentData; }
         }
     }
 

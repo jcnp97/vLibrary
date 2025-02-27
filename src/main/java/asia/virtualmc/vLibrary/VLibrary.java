@@ -5,8 +5,6 @@ import asia.virtualmc.vLibrary.core.CoreManager;
 import asia.virtualmc.vLibrary.guis.GUIManager;
 import asia.virtualmc.vLibrary.items.ItemManager;
 import asia.virtualmc.vLibrary.storage.DatabaseLib;
-import asia.virtualmc.vLibrary.storage.PlayerDataLib;
-import asia.virtualmc.vLibrary.storage.OtherDataLib;
 import asia.virtualmc.vLibrary.storage.StorageManagerLib;
 import asia.virtualmc.vLibrary.utils.ConsoleMessageUtil;
 import com.github.retrooper.packetevents.PacketEvents;
@@ -67,26 +65,24 @@ public final class VLibrary extends JavaPlugin {
 
     private boolean setupEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {
-            getLogger().warning("[vArchaeology] Vault plugin not found!");
+            getLogger().warning("Vault plugin not found!");
             return false;
         }
-        getLogger().info("[vArchaeology] Vault was found, attempting to get economy registration...");
+        getLogger().info("Vault was found, attempting to get economy registration...");
 
         RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) {
-            getLogger().warning("[vArchaeology] No economy provider was registered with Vault!");
+            getLogger().warning("No economy provider was registered with Vault!");
             return false;
         }
         econ = rsp.getProvider();
-        getLogger().info("[vArchaeology] Successfully hooked into the economy: " + econ.getName());
+        getLogger().info("Successfully hooked into the economy: " + econ.getName());
         return true;
     }
 
-    public PlayerDataLib getPlayerDataLib() {
-        return storageManagerLib.getPlayerDataLib();
+    public StorageManagerLib getStorageManager() {
+        return storageManagerLib;
     }
-
-    public OtherDataLib getOtherDataLib() { return storageManagerLib.getOtherDataLib(); }
 
     public GUIManager getGuiManager() { return guiManager; }
 
