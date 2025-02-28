@@ -28,13 +28,13 @@ import java.util.logging.Level;
 public class ToolsLib {
 
     public static Map<String, ItemStack> loadToolsFromFile(@NotNull Plugin plugin,
-                                                           @NotNull String ITEM_FILE,
-                                                           String prefix) {
+                                                           @NotNull String ITEM_FILE) {
+
         Map<String, ItemStack> toolCache = new HashMap<>();
         NamespacedKey TOOL_KEY = new NamespacedKey(plugin, "custom_tool");
         NamespacedKey REQ_LEVEL_KEY = new NamespacedKey(plugin, "required_level");
         NamespacedKey GATHER_KEY = new NamespacedKey(plugin, "gathering_rate");
-        String ITEM_SECTION_PATH = "itemsList";
+        String ITEM_SECTION_PATH = "toolsList";
 
         File configFile = new File(plugin.getDataFolder(), ITEM_FILE);
         try {
@@ -43,7 +43,7 @@ public class ToolsLib {
                 plugin.saveResource(ITEM_FILE, false);
             }
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, prefix + "Failed to create tools on " + ITEM_FILE + ": ", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to create tools on " + ITEM_FILE + ": ", e);
             return toolCache;
         }
 
@@ -66,9 +66,17 @@ public class ToolsLib {
             String materialName = config.getString(path + ".material");
             String displayName = config.getString(path + ".name");
             int customModelData = config.getInt(path + ".custom-model-data", 0);
-            double gatherRate = config.getDouble(path + ".gathering-rate", 0.0);
-            int unbreaking = config.getInt(path + ".unbreaking", 0);
-            int reqLevel = config.getInt(path + ".required-level", 1);
+
+            // Get custom stats from the new path
+            double gatherRate = config.getDouble(path + ".custom-stats.gathering-rate", 0.0);
+            int reqLevel = config.getInt(path + ".custom-stats.required-level", 1);
+
+            // Get specific stats
+            // ARCHAEOLOGY
+
+
+            // Handle unbreakable flag
+            boolean unbreakable = config.getBoolean(path + ".unbreakable", false);
 
             List<String> lore = config.getStringList(path + ".lore");
 
@@ -96,6 +104,21 @@ public class ToolsLib {
             Component nameComponent = miniMessage.deserialize(displayName);
             meta.displayName(nameComponent);
 
+            // Process lore with placeholders before converting with MiniMessage
+            List<String> processedLore = new ArrayList<>();
+            for (String line : lore) {
+                // Replace placeholders with actual values
+                String processedLine = line
+                        .replace("{required-level}", String.valueOf(reqLevel))
+                        .replace("{gathering-rate}", String.valueOf(gatherRate))
+                        .replace("{gathering-level}", String.valueOf(gatherRate)) // Handle both possible names
+                        .replace("{progress-gain}", String.valueOf(progressGain))
+                        .replace("{success-width}", String.valueOf(successWidth))
+                        .replace("{ad-bonus}", String.valueOf(adBonus));
+
+                processedLore.add(processedLine);
+            }
+
             // Convert lore using MiniMessage
             List<Component> parsedLore = new ArrayList<>();
             for (String line : lore) {
@@ -106,11 +129,34 @@ public class ToolsLib {
 
             meta.setCustomModelData(customModelData);
 
-            if (unbreaking >= 10) {
+            // Set unbreakable based on config
+            if (unbreakable) {
                 meta.setUnbreakable(true);
-            } else if (unbreaking > 0) {
-                meta.addEnchant(Enchantment.UNBREAKING, unbreaking, true);
             }
+
+            // Process enchantments
+            List<String> enchantsList = config.getStringList(path + ".enchants");
+            for (String enchantEntry : enchantsList) {
+                String[] parts = enchantEntry.split(":");
+                if (parts.length == 2) {
+                    String enchantName = parts[0];
+                    int level;
+                    try {
+                        level = Integer.parseInt(parts[1]);
+                        Enchantment enchant = Enchantment.getByKey(NamespacedKey.minecraft(enchantName.toLowerCase()));
+                        if (enchant != null) {
+                            meta.addEnchant(enchant, level, true);
+                        } else {
+                            plugin.getLogger().warning("Invalid enchantment '" + enchantName + "' for tool: " + toolName);
+                        }
+                    } catch (NumberFormatException e) {
+                        plugin.getLogger().warning("Invalid enchantment level for '" + enchantEntry + "' in tool: " + toolName);
+                    }
+                } else {
+                    plugin.getLogger().warning("Invalid enchantment format '" + enchantEntry + "' for tool: " + toolName);
+                }
+            }
+
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
             PersistentDataContainer container = meta.getPersistentDataContainer();
@@ -120,7 +166,12 @@ public class ToolsLib {
 
             if (plugin.getName().equals("vArchaeology")) {
                 NamespacedKey ADP_RATE = new NamespacedKey(plugin, "adp_rate");
-                container.set(ADP_RATE, PersistentDataType.DOUBLE, config.getDouble(path + ".ad-bonus", 0.0));
+                container.set(ADP_RATE, PersistentDataType.DOUBLE, config.getDouble(path + ".custom-stats.ad-bonus", 0.0));
+            } else if (plugin.getName().equals("vFishing")) {
+                NamespacedKey SUCCESS_WIDTH = new NamespacedKey(plugin, "success_width");
+                NamespacedKey PROGRESS_GAIN = new NamespacedKey(plugin, "progress_gain");
+                container.set(SUCCESS_WIDTH, PersistentDataType.INTEGER, config.getInt(path + ".custom-stats.success-width", 0));
+                container.set(PROGRESS_GAIN, PersistentDataType.INTEGER, config.getInt(path + ".custom-stats.progress-gain", 0));
             }
 
             item.setItemMeta(meta);

@@ -20,6 +20,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -220,5 +221,35 @@ public class EffectsUtil {
             converted.append(index != -1 ? CONVERTED.charAt(index) : ch);
         }
         return converted.toString();
+    }
+
+    public static List<String> divideLore(List<String> lore, int charCount) {
+        List<String> formattedLore = new ArrayList<>();
+
+        for (String line : lore) {
+            String[] words = line.split(" ");
+            StringBuilder currentLine = new StringBuilder();
+
+            for (String word : words) {
+                if (currentLine.length() + word.length() + 1 > charCount) {
+                    // Add the current line to formatted lore before starting a new line
+                    formattedLore.add(currentLine.toString().trim());
+                    currentLine.setLength(0); // Reset the StringBuilder
+                }
+
+                // Append word to current line
+                if (currentLine.length() > 0) {
+                    currentLine.append(" ");
+                }
+                currentLine.append(word);
+            }
+
+            // Add the last processed line if it contains text
+            if (currentLine.length() > 0) {
+                formattedLore.add(currentLine.toString());
+            }
+        }
+
+        return formattedLore;
     }
 }

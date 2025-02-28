@@ -46,7 +46,7 @@ public class ModelGenerator {
      * @param startingModelData The first custom model data value to use
      * @return Map of generated custom model data values to file names
      */
-    public static Map<Integer, String> generateModelsForPlugin(
+    public static void generateModelsForPlugin(
             @NotNull Plugin plugin,
             @NotNull String pathName,
             @NotNull String material,
@@ -55,12 +55,12 @@ public class ModelGenerator {
 
         if (names.isEmpty()) {
             plugin.getLogger().warning("No names provided for model generation");
-            return Collections.emptyMap();
+            return;
         }
 
         if (material.isEmpty()) {
             plugin.getLogger().warning("No material specified for model generation");
-            return Collections.emptyMap();
+            return;
         }
 
         // Process the texture path
@@ -82,7 +82,7 @@ public class ModelGenerator {
         File modelFolder = new File(plugin.getDataFolder(), "generated" + File.separator + "models" + File.separator + folderPath);
         if (!modelFolder.exists() && !modelFolder.mkdirs()) {
             plugin.getLogger().warning("Failed to create folder: " + modelFolder.getAbsolutePath());
-            return Collections.emptyMap();
+            return;
         }
 
         // Mapping of custom model data number to generated file name
@@ -114,7 +114,7 @@ public class ModelGenerator {
         File overrideFolder = new File(plugin.getDataFolder(), "generated" + File.separator + "models" + File.separator + "item");
         if (!overrideFolder.exists() && !overrideFolder.mkdirs()) {
             plugin.getLogger().warning("Failed to create folder: " + overrideFolder.getAbsolutePath());
-            return modelMapping;
+            return;
         }
         File overrideFile = new File(overrideFolder, overrideFileName);
 
@@ -155,8 +155,6 @@ public class ModelGenerator {
 
         plugin.getLogger().info("Generated " + modelMapping.size() + " model JSON files for " + texturePath);
         plugin.getLogger().info("Generated override JSON file: " + overrideFile.getName() + " with " + modelMapping.size() + " overrides.");
-
-        return modelMapping;
     }
 
     /**

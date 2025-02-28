@@ -71,6 +71,8 @@ public class ResourcesLib {
         List<String> rarityIDToName = globalSettings.getStringList("rarity-id-to-name");
         List<String> rarityColor = globalSettings.getStringList("rarity-color");
         List<String> regionIDToName = globalSettings.getStringList("region-id-to-name");
+        String lineDivider = globalSettings.getString("lore-settings.line-divider");
+        String loreFormatting = globalSettings.getString("lore-settings.formatting");
 
         // Load read material from STRING to MATERIAL
         Material material;
@@ -122,6 +124,12 @@ public class ResourcesLib {
             int rarityID = rarityOrder.indexOf(rarityFile) + 1;
 
             for (String itemName : contentSection.getKeys(false)) {
+                // Check if fishName already exists in the map (new feature)
+                if (resourceCache.containsKey(itemName)) {
+                    plugin.getLogger().severe("Duplicate fish name '" + itemName + "' found in " + rarityFile + ".yml - Skipping this item.");
+                    continue;
+                }
+
                 // Get the item-specific section
                 ConfigurationSection itemSection = contentSection.getConfigurationSection(itemName);
 
@@ -133,9 +141,9 @@ public class ResourcesLib {
                 // Get optional parameters with defaults
                 String displayName = itemSection.getString("display-name");
                 boolean applyWeight = itemSection.getBoolean("apply-weight-system", false);
-                //List<String> configLore = EffectsUtil.convertListToNewFont(itemSection.getStringList("lore"));
-                List<String> configLore = itemSection.getStringList("lore");
 
+                // Retrieve lore from config
+                List<String> configLore = EffectsUtil.divideLore(itemSection.getStringList("lore"), 36);
 
                 // Region ID is required
                 if (!itemSection.contains("region-id")) {
@@ -173,17 +181,15 @@ public class ResourcesLib {
                     }
 
                     // Add separator
-                    loreComponents.add(miniMessage.deserialize(
-                            "<dark_gray><st>                                                    </st>"));
+                    loreComponents.add(miniMessage.deserialize(lineDivider));
 
                     // Add item-specific lore if provided
                     if (configLore != null && !configLore.isEmpty()) {
                         for (String loreLine : configLore) {
-                            loreComponents.add(miniMessage.deserialize("<!i>" + loreLine));
+                            loreComponents.add(miniMessage.deserialize(loreFormatting + loreLine));
                         }
                         // Add closing separator after lore
-                        loreComponents.add(miniMessage.deserialize(
-                                "<dark_gray><st>                                                    </st>"));
+                        loreComponents.add(miniMessage.deserialize(lineDivider));
                     }
 
                     meta.lore(loreComponents);
@@ -259,5 +265,23 @@ public class ResourcesLib {
         }
 
         return YamlConfiguration.loadConfiguration(file);
+    }
+
+    private static List<String> formatLore(List<String> lore,
+                                    boolean autoFormat,
+                                    int charCount,
+                                    String formatToInclude) {
+        if (!autoFormat) {
+            return lore;
+        }
+
+        List<String> dividedLore = EffectsUtil.divideLore(lore, charCount);
+        List<String> newLore = new ArrayList<>();
+
+        for (String line : dividedLore) {
+            newLore.add("<gray>" + line);
+        }
+
+        return newLore;
     }
 }
