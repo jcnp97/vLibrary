@@ -32,8 +32,6 @@ public class ToolsLib {
 
         Map<String, ItemStack> toolCache = new HashMap<>();
         NamespacedKey TOOL_KEY = new NamespacedKey(plugin, "custom_tool");
-        NamespacedKey REQ_LEVEL_KEY = new NamespacedKey(plugin, "required_level");
-        NamespacedKey GATHER_KEY = new NamespacedKey(plugin, "gathering_rate");
         String ITEM_SECTION_PATH = "toolsList";
 
         File configFile = new File(plugin.getDataFolder(), ITEM_FILE);
@@ -67,17 +65,14 @@ public class ToolsLib {
             String displayName = config.getString(path + ".name");
             int customModelData = config.getInt(path + ".custom-model-data", 0);
 
-            // Get custom stats from the new path
-            double gatherRate = config.getDouble(path + ".custom-stats.gathering-rate", 0.0);
-            int reqLevel = config.getInt(path + ".custom-stats.required-level", 1);
-
-            // Get specific stats
-            // ARCHAEOLOGY
-
+            // Get stats for placeholder replacement
+            Map<String, Double> doubleStats = getCustomStatsDouble(config, path);
+            Map<String, Integer> intStats = getCustomStatsInt(config, path);
 
             // Handle unbreakable flag
             boolean unbreakable = config.getBoolean(path + ".unbreakable", false);
 
+            // Retrieve lore from config
             List<String> lore = config.getStringList(path + ".lore");
 
             if (materialName == null || displayName == null) {
@@ -101,28 +96,31 @@ public class ToolsLib {
             }
 
             // Set display name using MiniMessage
-            Component nameComponent = miniMessage.deserialize(displayName);
+            Component nameComponent = miniMessage.deserialize("<!i>" + displayName);
             meta.displayName(nameComponent);
 
             // Process lore with placeholders before converting with MiniMessage
             List<String> processedLore = new ArrayList<>();
             for (String line : lore) {
-                // Replace placeholders with actual values
-                String processedLine = line
-                        .replace("{required-level}", String.valueOf(reqLevel))
-                        .replace("{gathering-rate}", String.valueOf(gatherRate))
-                        .replace("{gathering-level}", String.valueOf(gatherRate)) // Handle both possible names
-                        .replace("{progress-gain}", String.valueOf(progressGain))
-                        .replace("{success-width}", String.valueOf(successWidth))
-                        .replace("{ad-bonus}", String.valueOf(adBonus));
+                String processedLine = line;
+
+                // Replace placeholders with integer values
+                for (Map.Entry<String, Integer> entry : intStats.entrySet()) {
+                    processedLine = processedLine.replace("{" + entry.getKey() + "}", String.valueOf(entry.getValue()));
+                }
+
+                // Replace placeholders with double values
+                for (Map.Entry<String, Double> entry : doubleStats.entrySet()) {
+                    processedLine = processedLine.replace("{" + entry.getKey() + "}", String.valueOf(entry.getValue()));
+                }
 
                 processedLore.add(processedLine);
             }
 
-            // Convert lore using MiniMessage
+            // Convert processed lore using MiniMessage
             List<Component> parsedLore = new ArrayList<>();
-            for (String line : lore) {
-                Component loreLine = miniMessage.deserialize(line);
+            for (String line : processedLore) {
+                Component loreLine = miniMessage.deserialize("<!i>" + line);
                 parsedLore.add(loreLine);
             }
             meta.lore(parsedLore);
@@ -136,42 +134,24 @@ public class ToolsLib {
 
             // Process enchantments
             List<String> enchantsList = config.getStringList(path + ".enchants");
-            for (String enchantEntry : enchantsList) {
-                String[] parts = enchantEntry.split(":");
-                if (parts.length == 2) {
-                    String enchantName = parts[0];
-                    int level;
-                    try {
-                        level = Integer.parseInt(parts[1]);
-                        Enchantment enchant = Enchantment.getByKey(NamespacedKey.minecraft(enchantName.toLowerCase()));
-                        if (enchant != null) {
-                            meta.addEnchant(enchant, level, true);
-                        } else {
-                            plugin.getLogger().warning("Invalid enchantment '" + enchantName + "' for tool: " + toolName);
-                        }
-                    } catch (NumberFormatException e) {
-                        plugin.getLogger().warning("Invalid enchantment level for '" + enchantEntry + "' in tool: " + toolName);
-                    }
-                } else {
-                    plugin.getLogger().warning("Invalid enchantment format '" + enchantEntry + "' for tool: " + toolName);
-                }
-            }
-
+            meta = addEnchantments(plugin, enchantsList, meta);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
+            // Set persistent data
             PersistentDataContainer container = meta.getPersistentDataContainer();
+            // Set the tool identifier
             container.set(TOOL_KEY, PersistentDataType.INTEGER, itemID);
-            container.set(REQ_LEVEL_KEY, PersistentDataType.INTEGER, reqLevel);
-            container.set(GATHER_KEY, PersistentDataType.DOUBLE, gatherRate);
 
-            if (plugin.getName().equals("vArchaeology")) {
-                NamespacedKey ADP_RATE = new NamespacedKey(plugin, "adp_rate");
-                container.set(ADP_RATE, PersistentDataType.DOUBLE, config.getDouble(path + ".custom-stats.ad-bonus", 0.0));
-            } else if (plugin.getName().equals("vFishing")) {
-                NamespacedKey SUCCESS_WIDTH = new NamespacedKey(plugin, "success_width");
-                NamespacedKey PROGRESS_GAIN = new NamespacedKey(plugin, "progress_gain");
-                container.set(SUCCESS_WIDTH, PersistentDataType.INTEGER, config.getInt(path + ".custom-stats.success-width", 0));
-                container.set(PROGRESS_GAIN, PersistentDataType.INTEGER, config.getInt(path + ".custom-stats.progress-gain", 0));
+            // Add all integer stats to PDC
+            for (Map.Entry<String, Integer> entry : intStats.entrySet()) {
+                NamespacedKey key = new NamespacedKey(plugin, entry.getKey().replace("-", "_"));
+                container.set(key, PersistentDataType.INTEGER, entry.getValue());
+            }
+
+            // Add all double stats to PDC
+            for (Map.Entry<String, Double> entry : doubleStats.entrySet()) {
+                NamespacedKey key = new NamespacedKey(plugin, entry.getKey().replace("-", "_"));
+                container.set(key, PersistentDataType.DOUBLE, entry.getValue());
             }
 
             item.setItemMeta(meta);
@@ -180,6 +160,61 @@ public class ToolsLib {
         }
 
         return toolCache;
+    }
+
+    private static ItemMeta addEnchantments(Plugin plugin, List<String> enchantsList, ItemMeta meta) {
+        String toolName = meta.getDisplayName();
+
+        for (String enchantEntry : enchantsList) {
+            String[] parts = enchantEntry.split(":");
+            if (parts.length == 2) {
+                String enchantName = parts[0];
+                int level;
+                try {
+                    level = Integer.parseInt(parts[1]);
+                    Enchantment enchant = Enchantment.getByKey(NamespacedKey.minecraft(enchantName.toLowerCase()));
+                    if (enchant != null) {
+                        meta.addEnchant(enchant, level, true);
+                    } else {
+                        plugin.getLogger().warning("Invalid enchantment '" + enchantName + "' for tool: " + toolName);
+                    }
+                } catch (NumberFormatException e) {
+                    plugin.getLogger().warning("Invalid enchantment level for '" + enchantEntry + "' in tool: " + toolName);
+                }
+            } else {
+                plugin.getLogger().warning("Invalid enchantment format '" + enchantEntry + "' for tool: " + toolName);
+            }
+        }
+
+        return meta;
+    }
+
+    private static Map<String, Double> getCustomStatsDouble(FileConfiguration config, String path) {
+        Map<String, Double> doubleStats = new HashMap<>();
+
+        ConfigurationSection doubleSection = config.getConfigurationSection(path + ".custom-stats.double");
+        if (doubleSection != null) {
+            for (String stat : doubleSection.getKeys(false)) {
+                double value = config.getDouble(path + ".custom-stats.double." + stat);
+                doubleStats.put(stat, value);
+            }
+        }
+
+        return doubleStats;
+    }
+
+    private static Map<String, Integer> getCustomStatsInt(FileConfiguration config, String path) {
+        Map<String, Integer> intStats = new HashMap<>();
+
+        ConfigurationSection intSection = config.getConfigurationSection(path + ".custom-stats.integer");
+        if (intSection != null) {
+            for (String stat : intSection.getKeys(false)) {
+                int value = config.getInt(path + ".custom-stats.integer." + stat);
+                intStats.put(stat, value);
+            }
+        }
+
+        return intStats;
     }
 
     public static boolean giveTool(@NotNull Player player, @NotNull ItemStack item) {
@@ -221,6 +256,27 @@ public class ToolsLib {
         if (!item.hasItemMeta()) return false;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         return pdc.has(TOOL_KEY, PersistentDataType.INTEGER);
+    }
+
+    public static double getToolGatherRate(ItemStack item, @NotNull NamespacedKey GATHER_KEY) {
+        if (item.getItemMeta() == null) return 0;
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+
+        return pdc.getOrDefault(GATHER_KEY, PersistentDataType.DOUBLE, 0.0);
+    }
+
+    public static double getToolDataDouble(ItemStack item, @NotNull NamespacedKey KEY) {
+        if (item.getItemMeta() == null) return 0;
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+
+        return pdc.getOrDefault(KEY, PersistentDataType.DOUBLE, 0.0);
+    }
+
+    public static int getToolDataInt(ItemStack item, @NotNull NamespacedKey KEY) {
+        if (item.getItemMeta() == null) return 0;
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+
+        return pdc.getOrDefault(KEY, PersistentDataType.INTEGER, 0);
     }
 
     public static boolean compareTool(@NotNull ItemStack item, @NotNull NamespacedKey TOOL_KEY, int toolID) {

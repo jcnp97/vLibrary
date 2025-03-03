@@ -1,106 +1,147 @@
 package asia.virtualmc.vLibrary.configs;
 
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 public class DropsConfig {
 
-    public static int[] readDropEXPFile(@NotNull Plugin plugin, String prefix) {
-        int[] dropEXP = {0, 0, 0, 0, 0, 0, 0};
+    private static final String CONFIG_PATH = "items/drops.yml";
+    private static final String BASE_PATH = "dropSettings";
 
-        File dropsFile = new File(plugin.getDataFolder(), "items/drops.yml");
-        if (!dropsFile.exists()) {
-            try {
-                plugin.saveResource("items/drops.yml", false);
-            } catch (Exception e) {
-                plugin.getLogger().severe(prefix + "Couldn't save/load drops.yml: " + e.getMessage());
-                return dropEXP;
-            }
-        }
-
-        FileConfiguration drops = YamlConfiguration.loadConfiguration(dropsFile);
-
-        try {
-            dropEXP[0] = drops.getInt("raritySettings.exp.common", 20);
-            dropEXP[1] = drops.getInt("raritySettings.exp.uncommon", 35);
-            dropEXP[2] = drops.getInt("raritySettings.exp.rare", 60);
-            dropEXP[3] = drops.getInt("raritySettings.exp.unique", 80);
-            dropEXP[4] = drops.getInt("raritySettings.exp.special", 150);
-            dropEXP[5] = drops.getInt("raritySettings.exp.mythical", 300);
-            dropEXP[6] = drops.getInt("raritySettings.exp.exotic", 1250);
-
-        } catch (Exception e) {
-            plugin.getLogger().severe(prefix + "There was an error when reading weights from drops.yml: " + e.getMessage());
-            return dropEXP;
-        }
-
-        return dropEXP;
+    /**
+     * Reads EXP values from the drops configuration file.
+     *
+     * @param plugin The plugin instance
+     * @return List of EXP values for each rarity
+     */
+    public static List<Integer> readDropEXP(@NotNull Plugin plugin) {
+        return readIntegerList(plugin, BASE_PATH + ".exp");
     }
 
-    public static double[] readDropPriceFile(@NotNull Plugin plugin, String prefix) {
-        double[] dropBasePrice = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-        File dropsFile = new File(plugin.getDataFolder(), "items/drops.yml");
-        if (!dropsFile.exists()) {
-            try {
-                plugin.saveResource("items/drops.yml", false);
-            } catch (Exception e) {
-                plugin.getLogger().severe(prefix + "Couldn't save/load items/drops.yml: " + e.getMessage());
-                return dropBasePrice;
-            }
-        }
-        FileConfiguration drops = YamlConfiguration.loadConfiguration(dropsFile);
-
-        try {
-            dropBasePrice[0] = drops.getInt("raritySettings.sell-price.common", 0);
-            dropBasePrice[1] = drops.getInt("raritySettings.sell-price.uncommon", 0);
-            dropBasePrice[2] = drops.getInt("raritySettings.sell-price.rare", 0);
-            dropBasePrice[3] = drops.getInt("raritySettings.sell-price.unique", 0);
-            dropBasePrice[4] = drops.getInt("raritySettings.sell-price.special", 0);
-            dropBasePrice[5] = drops.getInt("raritySettings.sell-price.mythical", 0);
-            dropBasePrice[6] = drops.getInt("raritySettings.sell-price.exotic", 0);
-
-        } catch (Exception e) {
-            plugin.getLogger().severe(prefix + "There was an error when reading weights from items.yml: " + e.getMessage());
-            return dropBasePrice;
-        }
-
-        return dropBasePrice;
+    /**
+     * Reads drop weights from the drops configuration file.
+     *
+     * @param plugin The plugin instance
+     * @return List of weight values for each rarity
+     */
+    public static List<Integer> readDropWeights(@NotNull Plugin plugin) {
+        return readIntegerList(plugin, BASE_PATH + ".weight");
     }
 
-    public static int[] readDropWeightsFile(@NotNull Plugin plugin, String prefix) {
-        int[] dropWeights = {0, 0, 0, 0, 0, 0, 0};
+    /**
+     * Reads sell prices from the drops configuration file.
+     *
+     * @param plugin The plugin instance
+     * @return List of sell price values for each rarity
+     */
+    public static List<Integer> readDropSellPrice(@NotNull Plugin plugin) {
+        return readIntegerList(plugin, BASE_PATH + ".sell-price");
+    }
 
-        File dropsFile = new File(plugin.getDataFolder(), "items/drops.yml");
-        if (!dropsFile.exists()) {
-            try {
-                plugin.saveResource("items/drops.yml", false);
-            } catch (Exception e) {
-                plugin.getLogger().severe(prefix + "Couldn't save/load drops.yml: " + e.getMessage());
-                return dropWeights;
-            }
+    /**
+     * Reads starting max weight values from the drops configuration file.
+     *
+     * @param plugin The plugin instance
+     * @return List of starting max weight values for each rarity
+     */
+    public static List<Integer> readStartingMaxWeight(@NotNull Plugin plugin) {
+        return readIntegerList(plugin, BASE_PATH + ".starting-max-weight");
+    }
+
+    /**
+     * Reads quality multiplier values from the drops configuration file.
+     *
+     * @param plugin The plugin instance
+     * @return List of quality multiplier values
+     */
+    public static List<Double> readQualityMultiplier(@NotNull Plugin plugin) {
+        return readDoubleList(plugin, BASE_PATH + ".quality-multiplier");
+    }
+
+    /**
+     * Generic method to read a list of integer values from a configuration section.
+     *
+     * @param plugin The plugin instance
+     * @param path The configuration path to read from
+     * @return List of integer values in the configuration section
+     */
+    private static List<Integer> readIntegerList(@NotNull Plugin plugin, String path) {
+        List<Integer> values = new ArrayList<>();
+        FileConfiguration config = getConfiguration(plugin);
+
+        if (config == null) {
+            return values;
         }
-
-        FileConfiguration drops = YamlConfiguration.loadConfiguration(dropsFile);
 
         try {
-            dropWeights[0] = drops.getInt("raritySettings.weight.common", 55);
-            dropWeights[1] = drops.getInt("raritySettings.weight.uncommon", 35);
-            dropWeights[2] = drops.getInt("raritySettings.weight.rare", 25);
-            dropWeights[3] = drops.getInt("raritySettings.weight.unique", 15);
-            dropWeights[4] = drops.getInt("raritySettings.weight.special", 8);
-            dropWeights[5] = drops.getInt("raritySettings.weight.mythical", 4);
-            dropWeights[6] = drops.getInt("raritySettings.weight.exotic", 1);
-
+            ConfigurationSection section = config.getConfigurationSection(path);
+            if (section != null) {
+                Set<String> keys = section.getKeys(false);
+                for (String key : keys) {
+                    values.add(section.getInt(key, 0));
+                }
+            }
         } catch (Exception e) {
-            plugin.getLogger().severe(prefix + "There was an error when reading weights from drops.yml: " + e.getMessage());
-            return dropWeights;
+            plugin.getLogger().severe("There was an error when reading values from " + path + ": " + e.getMessage());
         }
 
-        return dropWeights;
+        return values;
+    }
+
+    /**
+     * Generic method to read a list of double values from a configuration section.
+     *
+     * @param plugin The plugin instance
+     * @param path The configuration path to read from
+     * @return List of double values in the configuration section
+     */
+    private static List<Double> readDoubleList(@NotNull Plugin plugin, String path) {
+        List<Double> values = new ArrayList<>();
+        FileConfiguration config = getConfiguration(plugin);
+
+        if (config == null) {
+            return values;
+        }
+
+        try {
+            ConfigurationSection section = config.getConfigurationSection(path);
+            if (section != null) {
+                Set<String> keys = section.getKeys(false);
+                for (String key : keys) {
+                    values.add(section.getDouble(key, 0.0));
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().severe("There was an error when reading values from " + path + ": " + e.getMessage());
+        }
+
+        return values;
+    }
+
+    /**
+     * Retrieves the configuration file, creating it if it doesn't exist.
+     *
+     * @param plugin The plugin instance
+     * @return The loaded configuration or null if an error occurred
+     */
+    private static FileConfiguration getConfiguration(@NotNull Plugin plugin) {
+        File configFile = new File(plugin.getDataFolder(), CONFIG_PATH);
+        if (!configFile.exists()) {
+            try {
+                plugin.saveResource(CONFIG_PATH, false);
+            } catch (Exception e) {
+                plugin.getLogger().severe("Couldn't save/load " + CONFIG_PATH + ": " + e.getMessage());
+                return null;
+            }
+        }
+        return YamlConfiguration.loadConfiguration(configFile);
     }
 }

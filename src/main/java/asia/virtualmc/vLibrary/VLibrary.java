@@ -12,6 +12,7 @@ import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.permission.Permission;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -24,9 +25,16 @@ public final class VLibrary extends JavaPlugin {
     private CoreManager coreManager;
 
     private static Economy econ = null;
+    private static Permission perm = null;
 
     @Override
     public void onEnable() {
+        if (!setupVault() ) {
+            getLogger().severe(String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         this.storageManagerLib = new StorageManagerLib(this);
         this.itemManager = new ItemManager(this);
         this.databaseLib = DatabaseLib.getInstance(this);
@@ -36,11 +44,6 @@ public final class VLibrary extends JavaPlugin {
 
         PacketEvents.getAPI().init();
         CommandAPI.onEnable();
-        if (!setupEconomy() ) {
-            getLogger().severe(String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
-            getServer().getPluginManager().disablePlugin(this);
-            return;
-        }
 
         ConsoleMessageUtil.pluginPrint("vLibrary has been enabled!");
     }
@@ -63,19 +66,28 @@ public final class VLibrary extends JavaPlugin {
         PacketEvents.getAPI().terminate();
     }
 
-    private boolean setupEconomy() {
+    private boolean setupVault() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {
             getLogger().warning("Vault plugin not found!");
             return false;
         }
         getLogger().info("Vault was found, attempting to get economy registration...");
+        getLogger().info("Vault was found, attempting to get permission registration...");
 
-        RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null) {
+        RegisteredServiceProvider<Economy> rspEconomy = getServer().getServicesManager().getRegistration(Economy.class);
+        RegisteredServiceProvider<Permission> rspPermission = getServer().getServicesManager().getRegistration(Permission.class);
+        if (rspEconomy == null) {
             getLogger().warning("No economy provider was registered with Vault!");
             return false;
         }
-        econ = rsp.getProvider();
+
+        if (rspPermission == null) {
+            getLogger().warning("No permission provider was registered with Vault!");
+            return false;
+        }
+
+        econ = rspEconomy.getProvider();
+        perm = rspPermission.getProvider();
         getLogger().info("Successfully hooked into the economy: " + econ.getName());
         return true;
     }
@@ -95,4 +107,6 @@ public final class VLibrary extends JavaPlugin {
     public Economy getEconomy() {
         return econ;
     }
+
+    public Permission getPermission() { return perm; }
 }
