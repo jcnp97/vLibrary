@@ -13,69 +13,74 @@ import java.util.Set;
 
 public class DropsConfig {
 
-    private static final String CONFIG_PATH = "items/drops.yml";
     private static final String BASE_PATH = "dropSettings";
 
     /**
      * Reads EXP values from the drops configuration file.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @return List of EXP values for each rarity
      */
-    public static List<Integer> readDropEXP(@NotNull Plugin plugin) {
-        return readIntegerList(plugin, BASE_PATH + ".exp");
+    public static List<Integer> readDropEXP(@NotNull Plugin plugin, String configPath) {
+        return readIntegerList(plugin, configPath, BASE_PATH + ".exp");
     }
 
     /**
      * Reads drop weights from the drops configuration file.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @return List of weight values for each rarity
      */
-    public static List<Integer> readDropWeights(@NotNull Plugin plugin) {
-        return readIntegerList(plugin, BASE_PATH + ".weight");
+    public static List<Integer> readDropWeights(@NotNull Plugin plugin, String configPath) {
+        return readIntegerList(plugin, configPath, BASE_PATH + ".weight");
     }
 
     /**
      * Reads sell prices from the drops configuration file.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @return List of sell price values for each rarity
      */
-    public static List<Integer> readDropSellPrice(@NotNull Plugin plugin) {
-        return readIntegerList(plugin, BASE_PATH + ".sell-price");
+    public static List<Integer> readDropSellPrice(@NotNull Plugin plugin, String configPath) {
+        return readIntegerList(plugin, configPath, BASE_PATH + ".sell-price");
     }
 
     /**
      * Reads starting max weight values from the drops configuration file.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @return List of starting max weight values for each rarity
      */
-    public static List<Integer> readStartingMaxWeight(@NotNull Plugin plugin) {
-        return readIntegerList(plugin, BASE_PATH + ".starting-max-weight");
+    public static List<Integer> readStartingMaxWeight(@NotNull Plugin plugin, String configPath) {
+        return readIntegerList(plugin, configPath, BASE_PATH + ".starting-max-weight");
     }
 
     /**
      * Reads quality multiplier values from the drops configuration file.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @return List of quality multiplier values
      */
-    public static List<Double> readQualityMultiplier(@NotNull Plugin plugin) {
-        return readDoubleList(plugin, BASE_PATH + ".quality-multiplier");
+    public static List<Double> readQualityMultiplier(@NotNull Plugin plugin, String configPath) {
+        return readDoubleList(plugin, configPath, BASE_PATH + ".quality-multiplier");
     }
 
     /**
      * Generic method to read a list of integer values from a configuration section.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @param path The configuration path to read from
      * @return List of integer values in the configuration section
      */
-    private static List<Integer> readIntegerList(@NotNull Plugin plugin, String path) {
+    private static List<Integer> readIntegerList(@NotNull Plugin plugin, String configPath, String path) {
         List<Integer> values = new ArrayList<>();
-        FileConfiguration config = getConfiguration(plugin);
+        FileConfiguration config = getConfiguration(plugin, configPath);
 
         if (config == null) {
             return values;
@@ -100,12 +105,13 @@ public class DropsConfig {
      * Generic method to read a list of double values from a configuration section.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @param path The configuration path to read from
      * @return List of double values in the configuration section
      */
-    private static List<Double> readDoubleList(@NotNull Plugin plugin, String path) {
+    private static List<Double> readDoubleList(@NotNull Plugin plugin, String configPath, String path) {
         List<Double> values = new ArrayList<>();
-        FileConfiguration config = getConfiguration(plugin);
+        FileConfiguration config = getConfiguration(plugin, configPath);
 
         if (config == null) {
             return values;
@@ -130,15 +136,16 @@ public class DropsConfig {
      * Retrieves the configuration file, creating it if it doesn't exist.
      *
      * @param plugin The plugin instance
+     * @param configPath The path to the configuration file
      * @return The loaded configuration or null if an error occurred
      */
-    private static FileConfiguration getConfiguration(@NotNull Plugin plugin) {
-        File configFile = new File(plugin.getDataFolder(), CONFIG_PATH);
+    private static FileConfiguration getConfiguration(@NotNull Plugin plugin, String configPath) {
+        File configFile = new File(plugin.getDataFolder(), configPath);
         if (!configFile.exists()) {
             try {
-                plugin.saveResource(CONFIG_PATH, false);
+                plugin.saveResource(configPath, false);
             } catch (Exception e) {
-                plugin.getLogger().severe("Couldn't save/load " + CONFIG_PATH + ": " + e.getMessage());
+                plugin.getLogger().severe("Couldn't save/load " + configPath + ": " + e.getMessage());
                 return null;
             }
         }
