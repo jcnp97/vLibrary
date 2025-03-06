@@ -5,28 +5,26 @@ import org.jetbrains.annotations.NotNull;
 
 public class StorageManagerLib {
     private final VLibrary vlib;
-    private final DatabaseLib databaseLib;
+    private final LibraryData libraryData;
     private final PlayerDataLib playerDataLib;
-    private final DoubleDataLib doubleDataLib;
+    private final StatisticsDataLib statisticsDataLib;
     private final IntegerDataLib integerDataLib;
 
     public StorageManagerLib(@NotNull VLibrary vlib) {
         this.vlib = vlib;
-        this.databaseLib = DatabaseLib.getInstance(vlib);
+        this.libraryData = new LibraryData(vlib);
         this.playerDataLib = new PlayerDataLib(this);
-        this.doubleDataLib = new DoubleDataLib(this);
+        this.statisticsDataLib = new StatisticsDataLib(this);
         this.integerDataLib = new IntegerDataLib(this);
     }
 
     public VLibrary getMain() {
         return vlib;
     }
-    public DatabaseLib getDatabaseLib() { return databaseLib; }
+    public LibraryData getLibraryData() { return libraryData; }
     public PlayerDataLib getPlayerDataLib() {
         return playerDataLib;
     }
-    public DoubleDataLib getDoubleDataLib() {
-        return doubleDataLib;
-    }
+    public StatisticsDataLib getStatisticsDataLib() { return statisticsDataLib; }
     public IntegerDataLib getIntegerDataLib() { return integerDataLib; }
 }

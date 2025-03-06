@@ -16,9 +16,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-public class StarGUI {
+public class EXPLampGUI {
 
-    public static void openBXPStarGUI(@NotNull Player player,
+    public static void openEXPLampGUI(@NotNull Player player,
                                      int initialAmount,
                                      double initialXP,
                                      BiConsumer<Player, Double> xpAction) {
@@ -42,15 +42,13 @@ public class StarGUI {
     }
 
     private static ItemStack createConfirmButtonXP(double exp, int amount) {
-        String formattedXP = DigitUtils.formattedNoDecimals(amount);
+        String formattedXP = DigitUtils.formattedNoDecimals(amount * exp);
         ItemStack button = new ItemStack(Material.PAPER);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§eUse §a" + amount + "x §eBonus XP Stars?");
+            meta.setDisplayName("§eUse §a" + amount + "x §eXP Lamps?");
             meta.setCustomModelData(GUIConfig.INVISIBLE_ITEM);
-            meta.setLore(List.of("§7You will receive §6" + formattedXP + " Bonus XP§7.",
-                    "", "§8Note: §7Bonus XP doubles your", "§7EXP gain in ratio of 1:1."
-            ));
+            meta.setLore(List.of("§7You will receive §6" + formattedXP + " XP§7."));
             button.setItemMeta(meta);
         }
         return button;
@@ -67,9 +65,9 @@ public class StarGUI {
         return button;
     }
 
-    public static void lampBXPEffects(@NotNull Player player, double exp) {
+    public static void sendEffects(@NotNull Player player, double exp, String skillName) {
         String formattedEXP = DigitUtils.formattedNoDecimals(exp);
-        EffectsUtil.sendPlayerMessage(player, "<green>You have received " + formattedEXP + " Archaeology bonus XP!");
+        EffectsUtil.sendPlayerMessage(player, "<green>You have received " + formattedEXP + " " + skillName + " EXP!");
         EffectsUtil.playSound(player, "minecraft:entity.player.levelup", Sound.Source.PLAYER, 1.0f, 1.0f);
     }
 }

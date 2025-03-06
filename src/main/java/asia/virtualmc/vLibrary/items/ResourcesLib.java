@@ -140,7 +140,6 @@ public class ResourcesLib {
 
                 // Get optional parameters with defaults
                 String displayName = itemSection.getString("display-name");
-                boolean applyWeight = itemSection.getBoolean("apply-weight-system", false);
 
                 // Retrieve lore from config
                 List<String> configLore = EffectsUtil.divideLore(itemSection.getStringList("lore"), 36);
@@ -206,11 +205,9 @@ public class ResourcesLib {
                     pdc.set(new NamespacedKey(plugin, "rarity_id"), PersistentDataType.INTEGER, rarityID);
                     pdc.set(new NamespacedKey(plugin, "region_id"), PersistentDataType.INTEGER, regionID);
 
-                    // Optional PDC for weight system
-                    if (applyWeight) {
-                        pdc.set(new NamespacedKey(plugin, "weight"), PersistentDataType.DOUBLE, 0.0);
-                        pdc.set(new NamespacedKey(plugin, "quality_id"), PersistentDataType.INTEGER, 0);
-                    }
+                    // Add PDC data for weight and quality
+                    pdc.set(new NamespacedKey(plugin, "weight"), PersistentDataType.DOUBLE, 0.0);
+                    pdc.set(new NamespacedKey(plugin, "quality_id"), PersistentDataType.INTEGER, 0);
 
                     item.setItemMeta(meta);
                 }

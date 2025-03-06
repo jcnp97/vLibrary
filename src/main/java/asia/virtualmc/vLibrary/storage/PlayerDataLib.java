@@ -19,14 +19,14 @@ import java.util.UUID;
 
 public class PlayerDataLib {
     private final Plugin plugin;
-    private final DatabaseLib databaseLib;
+    private final LibraryData libraryData;
     private static final int MAX_EXP = 2_147_483_647;
     private static final int MIN_LEVEL = 1;
     private static final int MAX_LEVEL = 120;
 
     public PlayerDataLib(@NotNull StorageManagerLib storageManager) {
         this.plugin = storageManager.getMain();
-        this.databaseLib = storageManager.getDatabaseLib();
+        this.libraryData = storageManager.getLibraryData();
     }
 
     public static class PlayerStats {
@@ -61,31 +61,38 @@ public class PlayerDataLib {
         }
     }
 
-    public void createTable(@NotNull String tableName, String prefix) {
-        try (Connection conn = databaseLib.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "CREATE TABLE IF NOT EXISTS " + tableName +
-                             "(playerUUID VARCHAR(36) PRIMARY KEY," +
-                             "playerName VARCHAR(16) NOT NULL," +
-                             "playerEXP DECIMAL(13,2) DEFAULT 0.00," +
-                             "playerBXP DECIMAL(13,2) DEFAULT 0.00," +
-                             "playerXPM DECIMAL(4,2) DEFAULT 1.00," +
-                             "playerLevel TINYINT DEFAULT 1," +
-                             "playerLuck TINYINT DEFAULT 0," +
-                             "traitPoints INT DEFAULT 1," +
-                             "talentPoints INT DEFAULT 0," +
-                             "wisdomTrait INT DEFAULT 0," +
-                             "charismaTrait INT DEFAULT 0," +
-                             "karmaTrait INT DEFAULT 0," +
-                             "dexterityTrait INT DEFAULT 0," +
-                             "lastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-        ) {
+    /**
+     * Creates the player data table without storing the player's UUID.
+     * The table now uses playerID (sourced from vlib_players) as the PRIMARY KEY.
+     */
+    public void createTable(@NotNull String tablePrefix, String prefix) {
+        String sql = "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_playerData (" +
+                "playerID INT NOT NULL PRIMARY KEY, " +
+                "playerName VARCHAR(16) NOT NULL, " +
+                "playerEXP DECIMAL(13,2) DEFAULT 0.00, " +
+                "playerBXP DECIMAL(13,2) DEFAULT 0.00, " +
+                "playerXPM DECIMAL(4,2) DEFAULT 1.00, " +
+                "playerLevel TINYINT DEFAULT 1, " +
+                "playerLuck TINYINT DEFAULT 0, " +
+                "traitPoints INT DEFAULT 1, " +
+                "talentPoints INT DEFAULT 0, " +
+                "wisdomTrait INT DEFAULT 0, " +
+                "charismaTrait INT DEFAULT 0, " +
+                "karmaTrait INT DEFAULT 0, " +
+                "dexterityTrait INT DEFAULT 0, " +
+                "lastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ")";
+        try (Connection conn = libraryData.getDataSource().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.execute();
         } catch (SQLException e) {
             Bukkit.getLogger().severe(prefix + "Failed to create player data table: " + e.getMessage());
         }
     }
 
+    /**
+     * Saves the player data using the external getPlayerID(UUID) method to reference the correct playerID.
+     */
     public void savePlayerData(
             @NotNull UUID uuid,
             @NotNull String name,
@@ -100,19 +107,26 @@ public class PlayerDataLib {
             int charisma,
             int karma,
             int dexterity,
-            String tableName,
+            String tablePrefix,
             String prefix
     ) {
-        try (Connection conn = databaseLib.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE " + tableName + " SET " +
-                             "playerName = ?, playerEXP = ?, playerBXP = ?, " +
-                             "playerXPM = ?, playerLevel = ?, playerLuck = ?, " +
-                             "traitPoints = ?, talentPoints = ?, wisdomTrait = ?, " +
-                             "charismaTrait = ?, karmaTrait = ?, dexterityTrait = ?, " +
-                             "lastUpdated = CURRENT_TIMESTAMP " +
-                             "WHERE playerUUID = ?")
-        ) {
+        Integer playerID = libraryData.getPlayerID(uuid);
+        if (playerID == null) {
+            plugin.getLogger().severe(prefix + "getPlayerID returned NULL for UUID: " + uuid);
+            return;
+        }
+
+        String updateQuery = "UPDATE " + tablePrefix + "_playerData SET " +
+                "playerName = ?, playerEXP = ?, playerBXP = ?, " +
+                "playerXPM = ?, playerLevel = ?, playerLuck = ?, " +
+                "traitPoints = ?, talentPoints = ?, wisdomTrait = ?, " +
+                "charismaTrait = ?, karmaTrait = ?, dexterityTrait = ?, " +
+                "lastUpdated = CURRENT_TIMESTAMP " +
+                "WHERE playerID = ?";
+
+        try (Connection conn = libraryData.getDataSource().getConnection();
+             PreparedStatement ps = conn.prepareStatement(updateQuery)) {
+
             ps.setString(1, name);
             ps.setDouble(2, exp);
             ps.setDouble(3, bxp);
@@ -125,37 +139,39 @@ public class PlayerDataLib {
             ps.setInt(10, charisma);
             ps.setInt(11, karma);
             ps.setInt(12, dexterity);
-            ps.setString(13, uuid.toString());
+            ps.setInt(13, playerID);
 
             int rowsAffected = ps.executeUpdate();
             if (rowsAffected == 0) {
-                // If no rows were updated, the player doesn't exist in the database
-                createNewPlayerData(uuid, name, tableName, prefix);
+                // If no rows were updated, the player's data row doesn't exist yet.
+                createNewPlayerData(uuid, name, tablePrefix, prefix);
             }
         } catch (SQLException e) {
             plugin.getLogger().severe(prefix + "Failed to save " + name + " data on database: " + e.getMessage());
         }
     }
 
+    /**
+     * Saves all players' data in batch using playerID as the key.
+     */
     public void saveAllData(
             @NotNull Map<UUID, PlayerStats> playerDataMap,
-            String tableName,
+            String tablePrefix,
             String prefix
     ) {
         if (playerDataMap.isEmpty()) {
-            //Bukkit.getLogger().info(prefix + "No player data to save during bulk save operation.");
             return;
         }
 
-        String updateQuery = "UPDATE " + tableName + " SET " +
+        String updateQuery = "UPDATE " + tablePrefix + "_playerData SET " +
                 "playerName = ?, playerEXP = ?, playerBXP = ?, " +
                 "playerXPM = ?, playerLevel = ?, playerLuck = ?, " +
                 "traitPoints = ?, talentPoints = ?, wisdomTrait = ?, " +
                 "charismaTrait = ?, karmaTrait = ?, dexterityTrait = ?, " +
                 "lastUpdated = CURRENT_TIMESTAMP " +
-                "WHERE playerUUID = ?";
+                "WHERE playerID = ?";
 
-        try (Connection conn = databaseLib.getDataSource().getConnection();
+        try (Connection conn = libraryData.getDataSource().getConnection();
              PreparedStatement ps = conn.prepareStatement(updateQuery)) {
 
             conn.setAutoCommit(false);
@@ -164,6 +180,11 @@ public class PlayerDataLib {
             for (Map.Entry<UUID, PlayerStats> entry : playerDataMap.entrySet()) {
                 UUID uuid = entry.getKey();
                 PlayerStats stats = entry.getValue();
+                Integer playerID = libraryData.getPlayerID(uuid);
+                if (playerID == null) {
+                    plugin.getLogger().severe(prefix + "getPlayerID returned NULL for UUID: " + uuid);
+                    continue;
+                }
 
                 ps.setString(1, stats.name);
                 ps.setDouble(2, stats.exp);
@@ -177,12 +198,11 @@ public class PlayerDataLib {
                 ps.setInt(10, stats.charismaTrait);
                 ps.setInt(11, stats.karmaTrait);
                 ps.setInt(12, stats.dexterityTrait);
-                ps.setString(13, uuid.toString());
+                ps.setInt(13, playerID);
 
                 ps.addBatch();
                 batchSize++;
 
-                // Execute batch every 100 records
                 if (batchSize % 100 == 0) {
                     ps.executeBatch();
                     conn.commit();
@@ -199,25 +219,30 @@ public class PlayerDataLib {
         }
     }
 
-    public void createNewPlayerData(@NotNull UUID uuid, String name, String tableName, String prefix) {
-        try (Connection conn = databaseLib.getDataSource().getConnection()) {
+    /**
+     * Inserts a new player data record using the playerID provided by getPlayerID(UUID).
+     */
+    public void createNewPlayerData(@NotNull UUID uuid, String name, String tablePrefix, String prefix) {
+        Integer playerID = libraryData.getPlayerID(uuid);
+        if (playerID == null) {
+            plugin.getLogger().severe(prefix + "getPlayerID returned NULL for UUID: " + uuid);
+            return;
+        }
+
+        String insertQuery =
+                "INSERT INTO " + tablePrefix + "_playerData" +
+                        " (playerID, playerName, playerEXP, playerBXP, playerXPM, " +
+                        "playerLevel, playerLuck, traitPoints, talentPoints, wisdomTrait, " +
+                        "charismaTrait, karmaTrait, dexterityTrait) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = libraryData.getDataSource().getConnection()) {
             conn.setAutoCommit(false);
-
-            String insertQuery =
-                    "INSERT INTO " + tableName + " (" +
-                            "playerUUID, playerName, playerEXP, playerBXP, playerXPM, " +
-                            "playerLevel, playerLuck, traitPoints, talentPoints, wisdomTrait, " +
-                            "charismaTrait, karmaTrait, dexterityTrait" +
-                            ") " +
-                            "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? " +
-                            "WHERE NOT EXISTS (SELECT 1 FROM " + tableName + " WHERE playerUUID = ?)";
-
             try (PreparedStatement ps = conn.prepareStatement(insertQuery)) {
-                ps.setString(1, uuid.toString());
+                ps.setInt(1, playerID);
                 ps.setString(2, name);
-                ps.setDouble(3, 0);
-                ps.setDouble(4, 0);
-                ps.setDouble(5, 1);
+                ps.setDouble(3, 0.0);
+                ps.setDouble(4, 0.0);
+                ps.setDouble(5, 1.0);
                 ps.setInt(6, 1);
                 ps.setInt(7, 0);
                 ps.setInt(8, 1);
@@ -226,11 +251,8 @@ public class PlayerDataLib {
                 ps.setInt(11, 0);
                 ps.setInt(12, 0);
                 ps.setInt(13, 0);
-                ps.setString(14, uuid.toString());
-
                 ps.executeUpdate();
                 conn.commit();
-
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
@@ -240,13 +262,22 @@ public class PlayerDataLib {
         }
     }
 
+    /**
+     * Loads a player's data using the playerID obtained from getPlayerID(UUID).
+     * If no record exists, a new entry is created.
+     */
     @NotNull
-    public PlayerStats loadPlayerData(@NotNull UUID uuid, String tableName, String prefix) {
-        try (Connection conn = databaseLib.getDataSource().getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "SELECT * FROM " + tableName + " WHERE playerUUID = ?")
-        ) {
-            ps.setString(1, uuid.toString());
+    public PlayerStats loadPlayerData(@NotNull UUID uuid, String tablePrefix, String prefix) {
+        Integer playerID = libraryData.getPlayerID(uuid);
+        if (playerID == null) {
+            plugin.getLogger().severe(prefix + "getPlayerID returned NULL for UUID: " + uuid);
+            return new PlayerStats("Unknown", 0.0, 0.0, 1.0, 1, 0, 1, 0, 0, 0, 0, 0);
+        }
+
+        String selectQuery = "SELECT * FROM " + tablePrefix + "_playerData WHERE playerID = ?";
+        try (Connection conn = libraryData.getDataSource().getConnection();
+             PreparedStatement ps = conn.prepareStatement(selectQuery)) {
+            ps.setInt(1, playerID);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -267,12 +298,12 @@ public class PlayerDataLib {
                 }
             }
 
-            // If we get here, the player doesn't exist in the database
+            // If no record is found, create one and try again.
             OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
-            String playerName = player.getName() != null ? player.getName() : "Unknown";
-            createNewPlayerData(uuid, playerName, tableName, prefix);
+            String playerName = (player.getName() != null) ? player.getName() : "Unknown";
+            createNewPlayerData(uuid, playerName, tablePrefix, prefix);
 
-            // Try loading again
+            // Try loading again.
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return new PlayerStats(
@@ -295,22 +326,10 @@ public class PlayerDataLib {
             plugin.getLogger().severe(prefix + "Failed to load data for player " + uuid + ": " + e.getMessage());
         }
 
-        // If everything fails, return default stats
-        return new PlayerStats(
-                "Unknown",
-                0.0,
-                0.0,
-                1.0,
-                1,
-                0,
-                1,
-                0,
-                0,
-                0,
-                0,
-                0
-        );
+        return new PlayerStats("Unknown", 0.0, 0.0, 1.0, 1, 0, 1, 0, 0, 0, 0, 0);
     }
+
+    // NON-RELATED METHODS TO DATABASE
 
     public void levelingEffects(@NotNull Player player, int newLevel, int previousLevel, int traitPoints) {
         EffectsUtil.sendTitleMessage(player,

@@ -4,7 +4,7 @@ import asia.virtualmc.vLibrary.configs.ConfigManager;
 import asia.virtualmc.vLibrary.core.CoreManager;
 import asia.virtualmc.vLibrary.guis.GUIManager;
 import asia.virtualmc.vLibrary.items.ItemManager;
-import asia.virtualmc.vLibrary.storage.DatabaseLib;
+import asia.virtualmc.vLibrary.storage.LibraryData;
 import asia.virtualmc.vLibrary.storage.StorageManagerLib;
 import asia.virtualmc.vLibrary.utils.ConsoleMessageUtil;
 import com.github.retrooper.packetevents.PacketEvents;
@@ -18,7 +18,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class VLibrary extends JavaPlugin {
     private StorageManagerLib storageManagerLib;
-    private DatabaseLib databaseLib;
     private ItemManager itemManager;
     private ConfigManager configManager;
     private GUIManager guiManager;
@@ -37,7 +36,6 @@ public final class VLibrary extends JavaPlugin {
 
         this.storageManagerLib = new StorageManagerLib(this);
         this.itemManager = new ItemManager(this);
-        this.databaseLib = DatabaseLib.getInstance(this);
         this.configManager = new ConfigManager(this);
         this.coreManager = new CoreManager(this);
         this.guiManager = new GUIManager(this);
@@ -61,7 +59,7 @@ public final class VLibrary extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        databaseLib.closeConnection();
+        storageManagerLib.getLibraryData().closeConnection();
         CommandAPI.onDisable();
         PacketEvents.getAPI().terminate();
     }

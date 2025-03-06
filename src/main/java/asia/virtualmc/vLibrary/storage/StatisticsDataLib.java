@@ -12,59 +12,42 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class IntegerDataLib {
+public class StatisticsDataLib {
     private final LibraryData libraryData;
     private final ConcurrentHashMap<UUID, Integer> playerIdCache = new ConcurrentHashMap<>();
+    // Store the default stat list for use when creating new player data
+    private List<String> defaultStatList;
     private static final int BATCH_SIZE = 1000;
 
-    public IntegerDataLib(@NotNull StorageManagerLib storageManager) {
+    public StatisticsDataLib(@NotNull StorageManagerLib storageManager) {
         this.libraryData = storageManager.getLibraryData();
     }
 
     /**
-     * Creates necessary tables for data storage.
+     * Creates the player data table.
      * <p>
-     * Note: The creation of the players table has been removed because vlib_players is now managed externally.
-     * The player data table now references vlib_players.
+     * Note: The definition table has been removed. Instead, the player data table now contains:
+     * player_id, stat_name, and amount.
      */
     public void createTable(@NotNull List<String> statList, @NotNull String tableName, String prefix) {
-        try (Connection conn = libraryData.getDataSource().getConnection()) {
-            // Create data definition table
-            conn.createStatement().execute(
-                    "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
-                            "data_id INT NOT NULL AUTO_INCREMENT," +
-                            "data_name VARCHAR(255) NOT NULL," +
-                            "PRIMARY KEY (data_id)," +
-                            "UNIQUE KEY (data_name)" +
-                            ")"
-            );
+        // Cache the default stats so that new players can be initialized
+        this.defaultStatList = statList;
 
-            // Create player data table with composite foreign keys (now referencing vlib_players)
+        try (Connection conn = libraryData.getDataSource().getConnection()) {
+            // Create the player data table with stat_name directly
             conn.createStatement().execute(
                     "CREATE TABLE IF NOT EXISTS " + tableName + "_data (" +
                             "player_id INT NOT NULL," +
-                            "data_id INT NOT NULL," +
+                            "stat_name VARCHAR(255) NOT NULL," +
                             "amount INT DEFAULT 0," +
                             "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
-                            "PRIMARY KEY (player_id, data_id)," +
+                            "PRIMARY KEY (player_id, stat_name)," +
                             "FOREIGN KEY (player_id) REFERENCES vlib_players(playerID) ON DELETE CASCADE," +
-                            "FOREIGN KEY (data_id) REFERENCES " + tableName + "(data_id) ON DELETE CASCADE," +
                             "INDEX idx_player_id (player_id)" +
                             ")"
             );
-
-            // Insert new stat types if they don't exist
-            String insertQuery = "INSERT IGNORE INTO " + tableName + " (data_name) VALUES (?)";
-
-            try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
-                for (String data : statList) {
-                    insertStmt.setString(1, data);
-                    insertStmt.addBatch();
-                }
-                insertStmt.executeBatch();
-            }
         } catch (SQLException e) {
-            Bukkit.getLogger().severe(prefix + "Failed to create " + tableName + " tables: " + e.getMessage());
+            Bukkit.getLogger().severe(prefix + "Failed to create " + tableName + " data table: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -94,16 +77,18 @@ public class IntegerDataLib {
 
     /**
      * Saves data for a single player.
+     * <p>
+     * Note: The key of the playerData map is now the stat name.
      */
     public void savePlayerData(@NotNull UUID uuid, @NotNull String tableName,
-                               @NotNull Map<Integer, Integer> playerData, String prefix) {
+                               @NotNull Map<String, Integer> playerData, String prefix) {
         if (playerData.isEmpty()) {
             Bukkit.getLogger().warning(prefix + "Attempted to update data for player " +
                     uuid + " but the provided data map is empty.");
             return;
         }
 
-        String sql = "INSERT INTO " + tableName + "_data (player_id, data_id, amount) VALUES (?, ?, ?) " +
+        String sql = "INSERT INTO " + tableName + "_data (player_id, stat_name, amount) VALUES (?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE amount = VALUES(amount)";
 
         try (Connection conn = libraryData.getDataSource().getConnection()) {
@@ -111,9 +96,9 @@ public class IntegerDataLib {
             int playerId = getOrCreatePlayerId(uuid, conn, prefix);
 
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                for (Map.Entry<Integer, Integer> entry : playerData.entrySet()) {
+                for (Map.Entry<String, Integer> entry : playerData.entrySet()) {
                     ps.setInt(1, playerId);
-                    ps.setInt(2, entry.getKey());
+                    ps.setString(2, entry.getKey());
                     ps.setInt(3, entry.getValue());
                     ps.addBatch();
                 }
@@ -131,15 +116,17 @@ public class IntegerDataLib {
 
     /**
      * Saves data for all players in bulk.
+     * <p>
+     * Note: The inner map now uses stat name as the key.
      */
     public void saveAllData(@NotNull String tableName,
-                            @NotNull ConcurrentHashMap<UUID, ConcurrentHashMap<Integer, Integer>> allPlayerData,
+                            @NotNull ConcurrentHashMap<UUID, ConcurrentHashMap<String, Integer>> allPlayerData,
                             String prefix) {
         if (allPlayerData.isEmpty()) {
             return;
         }
 
-        String sql = "INSERT INTO " + tableName + "_data (player_id, data_id, amount) VALUES (?, ?, ?) " +
+        String sql = "INSERT INTO " + tableName + "_data (player_id, stat_name, amount) VALUES (?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE amount = VALUES(amount)";
 
         try (Connection conn = libraryData.getDataSource().getConnection()) {
@@ -147,12 +134,12 @@ public class IntegerDataLib {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 int batchCount = 0;
 
-                for (Map.Entry<UUID, ConcurrentHashMap<Integer, Integer>> playerEntry : allPlayerData.entrySet()) {
+                for (Map.Entry<UUID, ConcurrentHashMap<String, Integer>> playerEntry : allPlayerData.entrySet()) {
                     int playerId = getOrCreatePlayerId(playerEntry.getKey(), conn, prefix);
 
-                    for (Map.Entry<Integer, Integer> dataEntry : playerEntry.getValue().entrySet()) {
+                    for (Map.Entry<String, Integer> dataEntry : playerEntry.getValue().entrySet()) {
                         ps.setInt(1, playerId);
-                        ps.setInt(2, dataEntry.getKey());
+                        ps.setString(2, dataEntry.getKey());
                         ps.setInt(3, dataEntry.getValue());
                         ps.addBatch();
 
@@ -181,22 +168,28 @@ public class IntegerDataLib {
 
     /**
      * Creates default data entries for a new player.
+     * <p>
+     * Instead of selecting default stat types from a definition table, we now loop through the
+     * cached default stat list and insert a row with amount 0 for each stat.
      */
     public void createNewPlayerData(@NotNull UUID uuid, @NotNull String tableName, String prefix) {
+        if (defaultStatList == null || defaultStatList.isEmpty()) {
+            Bukkit.getLogger().warning(prefix + "Default stat list is empty, skipping creation of new player data for " + uuid);
+            return;
+        }
         try (Connection conn = libraryData.getDataSource().getConnection()) {
             conn.setAutoCommit(false);
             int playerId = getOrCreatePlayerId(uuid, conn, prefix);
 
             String insertQuery =
-                    "INSERT INTO " + tableName + "_data (player_id, data_id, amount) " +
-                            "SELECT ?, data_id, 0 FROM " + tableName + " t " +
-                            "WHERE NOT EXISTS (SELECT 1 FROM " + tableName + "_data " +
-                            "WHERE player_id = ? AND data_id = t.data_id)";
-
+                    "INSERT IGNORE INTO " + tableName + "_data (player_id, stat_name, amount) VALUES (?, ?, 0)";
             try (PreparedStatement ps = conn.prepareStatement(insertQuery)) {
-                ps.setInt(1, playerId);
-                ps.setInt(2, playerId);
-                ps.executeUpdate();
+                for (String stat : defaultStatList) {
+                    ps.setInt(1, playerId);
+                    ps.setString(2, stat);
+                    ps.addBatch();
+                }
+                ps.executeBatch();
                 conn.commit();
             } catch (SQLException e) {
                 conn.rollback();
@@ -210,38 +203,38 @@ public class IntegerDataLib {
 
     /**
      * Loads data for a single player.
+     * <p>
+     * Note: The query now retrieves stat_name instead of data_id.
      */
-    public ConcurrentHashMap<Integer, Integer> loadPlayerData(@NotNull UUID uuid,
-                                                              @NotNull String tableName,
-                                                              String prefix) {
-        ConcurrentHashMap<Integer, Integer> playerDataMap = new ConcurrentHashMap<>();
+    public ConcurrentHashMap<String, Integer> loadPlayerData(@NotNull UUID uuid,
+                                                             @NotNull String tableName,
+                                                             String prefix) {
+        ConcurrentHashMap<String, Integer> playerDataMap = new ConcurrentHashMap<>();
 
         try (Connection conn = libraryData.getDataSource().getConnection()) {
             // Retrieve playerID using the external vlib_players table
             int playerId = getOrCreatePlayerId(uuid, conn, prefix);
 
-            // Check if player data exists
+            // Check if player data exists; if not, create new default entries
             String countQuery = "SELECT COUNT(*) FROM " + tableName + "_data WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(countQuery)) {
                 ps.setInt(1, playerId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next() || rs.getInt(1) == 0) {
-                        // Create new player data if it doesn't exist
                         createNewPlayerData(uuid, tableName, prefix);
                     }
                 }
             }
 
-            // Load the data
-            String loadQuery = "SELECT d.data_id, d.amount FROM " + tableName + "_data d " +
-                    "WHERE d.player_id = ?";
+            // Load the data using stat_name as key
+            String loadQuery = "SELECT stat_name, amount FROM " + tableName + "_data WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(loadQuery)) {
                 ps.setInt(1, playerId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        int dataId = rs.getInt("data_id");
+                        String statName = rs.getString("stat_name");
                         int amount = rs.getInt("amount");
-                        playerDataMap.put(dataId, amount);
+                        playerDataMap.put(statName, amount);
                     }
                 }
             }
