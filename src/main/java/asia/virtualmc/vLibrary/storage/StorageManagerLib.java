@@ -9,6 +9,7 @@ public class StorageManagerLib {
     private final PlayerDataLib playerDataLib;
     private final StatisticsDataLib statisticsDataLib;
     private final IntegerDataLib integerDataLib;
+    private final LocalStorageLib localStorageLib;
 
     public StorageManagerLib(@NotNull VLibrary vlib) {
         this.vlib = vlib;
@@ -16,6 +17,7 @@ public class StorageManagerLib {
         this.playerDataLib = new PlayerDataLib(this);
         this.statisticsDataLib = new StatisticsDataLib(this);
         this.integerDataLib = new IntegerDataLib(this);
+        this.localStorageLib = new LocalStorageLib(this);
     }
 
     public VLibrary getMain() {
@@ -27,4 +29,5 @@ public class StorageManagerLib {
     }
     public StatisticsDataLib getStatisticsDataLib() { return statisticsDataLib; }
     public IntegerDataLib getIntegerDataLib() { return integerDataLib; }
+    public LocalStorageLib getLocalStorageLib() { return localStorageLib; }
 }

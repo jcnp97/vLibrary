@@ -1,118 +1,132 @@
 package asia.virtualmc.vLibrary.configs;
 
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.io.File;
 import java.util.*;
 
 public class TalentTreeConfig {
+    public record Talents(String talentName, int requiredLevel, Optional<List<Integer>> requiredID,
+                          int[] values, ItemStack item) {}
 
-    public static Map<String, ItemStack> loadTalentsFromFile(@NotNull Plugin plugin) {
+    public static Map<Integer, Talents> loadTalentsFromFile(@NotNull Plugin plugin) {
         File talentFile = new File(plugin.getDataFolder(), "talent-trees.yml");
         FileConfiguration config = YamlConfiguration.loadConfiguration(talentFile);
-        Map<String, ItemStack> talentItems = new LinkedHashMap<>();
+        Map<Integer, Talents> talents = new LinkedHashMap<>();
 
         if (config.isConfigurationSection("talentList")) {
-            ConfigurationSection talentSection = config.getConfigurationSection("talentList");
-            for (String key : talentSection.getKeys(false)) {
-                ConfigurationSection talent = talentSection.getConfigurationSection(key);
-                if (talent == null) continue;
+            ConfigurationSection talentListSection = config.getConfigurationSection("talentList");
+            if (talentListSection != null) {
+                for (String key : talentListSection.getKeys(false)) {
+                    ConfigurationSection talentSection = talentListSection.getConfigurationSection(key);
+                    if (talentSection == null) continue;
 
-                // Get the name and convert it to the required format for the map key
-                String displayName = talent.getString("name");
-                if (displayName == null) continue;
+                    int talentId;
+                    try {
+                        talentId = Integer.parseInt(key);
+                    } catch (NumberFormatException e) {
+                        continue; // Skip if not a valid number
+                    }
 
-                // Remove minimessage formatting and convert to lowercase
-                String plainName = displayName.replaceAll("<[^>]+>", "")
-                        .toLowerCase()
-                        .replaceAll("\\s+", "_")
-                        .replaceAll("[^a-z0-9_]", "");
+                    // Get the name and convert it to the required format
+                    String displayName = talentSection.getString("name");
+                    if (displayName == null) continue;
 
-                // Create ItemStack with proper material
-                String materialStr = talent.getString("material");
-                if (materialStr == null) continue;
+                    // Remove minimessage formatting and convert to lowercase
+                    String talentName = displayName.replaceAll("<[^>]+>", "")
+                            .toLowerCase()
+                            .replaceAll("\\s+", "_")
+                            .replaceAll("[^a-z0-9_]", "");
 
-                Material material = Material.valueOf(materialStr);
-                ItemStack itemStack = new ItemStack(material);
+                    // Get required level
+                    int requiredLevel = talentSection.getInt("required_level", 0);
 
-                // Set custom model data if present
-                int customModelData = talent.getInt("custom-model-data", 0);
-                if (customModelData > 0) {
+                    // Get required ID if exists
+                    Optional<List<Integer>> requiredID = Optional.empty();
+                    if (talentSection.contains("required_id")) {
+                        String requiredIdStr = talentSection.getString("required_id");
+                        if (requiredIdStr != null && !requiredIdStr.isEmpty()) {
+                            List<Integer> requiredIds = new ArrayList<>();
+                            String[] requiredIdParts = requiredIdStr.split(",\\s*");
+                            for (String idPart : requiredIdParts) {
+                                try {
+                                    requiredIds.add(Integer.parseInt(idPart.trim()));
+                                } catch (NumberFormatException ignored) {
+                                    // Skip invalid numbers
+                                }
+                            }
+                            if (!requiredIds.isEmpty()) {
+                                requiredID = Optional.of(requiredIds);
+                            }
+                        }
+                    }
+
+                    // Get values
+                    ConfigurationSection valuesSection = talentSection.getConfigurationSection("values");
+                    int[] values = new int[0];
+                    if (valuesSection != null) {
+                        Set<String> valueKeys = valuesSection.getKeys(false);
+                        values = new int[valueKeys.size()];
+                        int index = 0;
+                        for (String valueKey : valueKeys) {
+                            values[index++] = valuesSection.getInt(valueKey);
+                        }
+                    }
+
+                    // Create ItemStack with proper material
+                    String materialStr = talentSection.getString("material");
+                    if (materialStr == null) continue;
+
+                    Material material;
+                    try {
+                        material = Material.valueOf(materialStr);
+                    } catch (IllegalArgumentException e) {
+                        continue;
+                    }
+
+                    ItemStack itemStack = new ItemStack(material);
+
+                    // Set ItemMeta properties
                     ItemMeta meta = itemStack.getItemMeta();
                     if (meta != null) {
-                        meta.setCustomModelData(customModelData);
-                        itemStack.setItemMeta(meta);
-                    }
-                }
+                        // Set display name
+                        meta.displayName(MiniMessage.miniMessage().deserialize(displayName));
 
-                // Set display name and lore
-                ItemMeta meta = itemStack.getItemMeta();
-                if (meta != null) {
-                    meta.setDisplayName(displayName);
-
-                    List<String> lore = talent.getStringList("lore");
-                    if (!lore.isEmpty()) {
-                        meta.setLore(lore);
-                    }
-
-                    itemStack.setItemMeta(meta);
-                }
-
-                // Add PDC data if keys are present
-                if (talent.isConfigurationSection("keys")) {
-                    ConfigurationSection keysSection = talent.getConfigurationSection("keys");
-                    if (keysSection != null) {
-                        PersistentDataContainer pdc = itemStack.getItemMeta().getPersistentDataContainer();
-
-                        // Process required_level
-                        if (keysSection.contains("required_level")) {
-                            NamespacedKey requiredLevelKey = new NamespacedKey(plugin, "required_level");
-                            pdc.set(requiredLevelKey, PersistentDataType.INTEGER, keysSection.getInt("required_level"));
+                        // Set custom model data if present
+                        int customModelData = talentSection.getInt("custom-model-data", 0);
+                        if (customModelData > 0) {
+                            meta.setCustomModelData(customModelData);
                         }
 
-                        // Process required_id if it exists
-                        if (keysSection.contains("required_id")) {
-                            NamespacedKey requiredIdKey = new NamespacedKey(plugin, "required_id");
-                            String requiredIdStr = keysSection.getString("required_id");
-                            if (requiredIdStr != null && !requiredIdStr.isEmpty()) {
-                                String[] requiredIdParts = requiredIdStr.split(",\\s*");
-                                int[] requiredIds = new int[requiredIdParts.length];
-                                for (int i = 0; i < requiredIdParts.length; i++) {
-                                    requiredIds[i] = Integer.parseInt(requiredIdParts[i].trim());
-                                }
-                                pdc.set(requiredIdKey, PersistentDataType.INTEGER_ARRAY, requiredIds);
+                        // Set lore if present
+                        List<String> lore = talentSection.getStringList("lore");
+                        if (!lore.isEmpty()) {
+                            List<Component> formattedLore = new ArrayList<>();
+                            for (String line : lore) {
+                                formattedLore.add(MiniMessage.miniMessage().deserialize(line));
                             }
+                            meta.lore(formattedLore);
                         }
 
-                        // Process integer_<number> and double_<number> keys
-                        for (String pdcKey : keysSection.getKeys(false)) {
-                            if (pdcKey.startsWith("integer_")) {
-                                NamespacedKey intKey = new NamespacedKey(plugin, pdcKey);
-                                pdc.set(intKey, PersistentDataType.INTEGER, keysSection.getInt(pdcKey));
-                            } else if (pdcKey.startsWith("double_")) {
-                                NamespacedKey doubleKey = new NamespacedKey(plugin, pdcKey);
-                                pdc.set(doubleKey, PersistentDataType.DOUBLE, keysSection.getDouble(pdcKey));
-                            }
-                        }
 
                         itemStack.setItemMeta(meta);
                     }
-                }
 
-                talentItems.put(plainName, itemStack);
+                    Talents talent = new Talents(talentName, requiredLevel, requiredID, values, itemStack);
+                    talents.put(talentId, talent);
+                }
             }
         }
 
-        return talentItems;
+        return talents;
     }
 }

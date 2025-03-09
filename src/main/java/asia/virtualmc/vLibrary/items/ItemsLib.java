@@ -18,10 +18,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 import java.util.logging.Level;
 
 public class ItemsLib {
@@ -121,6 +118,42 @@ public class ItemsLib {
         if (!item.hasItemMeta()) return 0;
         PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
         return pdc.getOrDefault(ITEM_KEY, PersistentDataType.INTEGER, 0);
+    }
+
+    public static void addLore(ItemStack item, String newLore) {
+        if (item == null || !item.hasItemMeta()) return;
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+
+        List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
+        if (lore == null) return;
+
+        lore.addAll(Arrays.asList(newLore.split("\n")));
+
+        meta.setLore(lore);
+
+        item.setItemMeta(meta);
+    }
+
+    public static void addLore(ItemMeta meta, String newLore) {
+        if (meta == null) return;
+
+        List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
+        if (lore == null) return;
+
+        newLore = newLore.replace("\\n", "\n");
+
+        lore.addAll(Arrays.asList(newLore.split("\n")));
+
+        meta.setLore(lore);
+    }
+
+    public static int getCustomModelData(@NotNull ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return 1;
+
+        return meta.getCustomModelData();
     }
 
     public static boolean giveItem(@NotNull Player player, @NotNull ItemStack item, int amount) {

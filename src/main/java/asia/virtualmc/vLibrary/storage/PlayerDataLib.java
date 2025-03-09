@@ -331,12 +331,14 @@ public class PlayerDataLib {
 
     // NON-RELATED METHODS TO DATABASE
 
-    public void levelingEffects(@NotNull Player player, int newLevel, int previousLevel, int traitPoints) {
+    public void levelingEffects(@NotNull Player player, String skillName, String command,
+                                       int previousLevel, int newLevel, int traitPoints) {
+
         EffectsUtil.sendTitleMessage(player,
-                "<gradient:#ebd197:#a2790d>Archaeology</gradient>",
+                "<gradient:#ebd197:#a2790d>" + skillName + "</gradient>",
                 "<#00FFA2>Level " + previousLevel + " ➛ " + newLevel);
         EffectsUtil.sendPlayerMessage(player,"<gradient:#FFE6A3:#FFD06E>You have </gradient><#00FFA2>" +
-                traitPoints + " trait points <gradient:#FFE6A3:#FFD06E>that you can spend on [/varch trait].</gradient>");
+                traitPoints + " trait points <gradient:#FFE6A3:#FFD06E>that you can spend on " + command + ".</gradient>");
         if (newLevel == 99 || newLevel == MAX_LEVEL) {
             EffectsUtil.spawnFireworks(plugin, player, 12, 3);
             EffectsUtil.playSound(player, "minecraft:cozyvanilla.all.master_levelup", Sound.Source.PLAYER, 1.0f, 1.0f);
