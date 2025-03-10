@@ -1,7 +1,6 @@
 package asia.virtualmc.vLibrary.storage;
 
 import org.bukkit.Bukkit;
-import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
@@ -38,19 +37,20 @@ public class TaskDataLib {
      * Creates the player data table.
      * <p>
      * Note: The definition table has been removed. Instead, the player data table now contains:
-     * player_id, task_name, and task_required.
+     * player_id, task_name, task_required, and expiration_time.
      */
     public void createTable(@NotNull List<String> taskList, @NotNull String tableName, String prefix) {
         // Cache the default tasks so that new players can be initialized
         this.defaultTaskList = taskList;
 
         try (Connection conn = libraryData.getDataSource().getConnection()) {
-            // Create the player data table with task_name and task_required
+            // Create the player data table with task_name, task_required, and expiration_time
             conn.createStatement().execute(
                     "CREATE TABLE IF NOT EXISTS " + tableName + "_data (" +
                             "player_id INT NOT NULL," +
                             "task_name VARCHAR(255) NOT NULL," +
                             "task_required VARCHAR(255) DEFAULT ''," +
+                            "expiration_time BIGINT DEFAULT 0," +
                             "last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
                             "PRIMARY KEY (player_id, task_name)," +
                             "FOREIGN KEY (player_id) REFERENCES vlib_players(playerID) ON DELETE CASCADE," +
@@ -89,28 +89,29 @@ public class TaskDataLib {
     /**
      * Saves data for a single player.
      * <p>
-     * Note: The key of the playerData map is now the task name.
+     * Note: The playerData map now uses TaskDetails as values.
      */
     public void savePlayerData(@NotNull UUID uuid, @NotNull String tableName,
-                               @NotNull Map<String, String> playerData, String prefix) {
+                               @NotNull Map<String, TaskDetails> playerData, String prefix) {
         if (playerData.isEmpty()) {
             Bukkit.getLogger().warning(prefix + "Attempted to update data for player " +
                     uuid + " but the provided data map is empty.");
             return;
         }
 
-        String sql = "INSERT INTO " + tableName + "_data (player_id, task_name, task_required) VALUES (?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE task_required = VALUES(task_required)";
+        String sql = "INSERT INTO " + tableName + "_data (player_id, task_name, task_required, expiration_time) VALUES (?, ?, ?, ?) " +
+                "ON DUPLICATE KEY UPDATE task_required = VALUES(task_required), expiration_time = VALUES(expiration_time)";
 
         try (Connection conn = libraryData.getDataSource().getConnection()) {
             conn.setAutoCommit(false);
             int playerId = getOrCreatePlayerId(uuid, conn, prefix);
 
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                for (Map.Entry<String, String> entry : playerData.entrySet()) {
+                for (Map.Entry<String, TaskDetails> entry : playerData.entrySet()) {
                     ps.setInt(1, playerId);
                     ps.setString(2, entry.getKey());
-                    ps.setString(3, entry.getValue());
+                    ps.setString(3, entry.getValue().hashedString);
+                    ps.setLong(4, entry.getValue().expiration);
                     ps.addBatch();
                 }
                 ps.executeBatch();
@@ -125,63 +126,64 @@ public class TaskDataLib {
         }
     }
 
-    /**
-     * Saves data for all players in bulk.
-     * <p>
-     * Note: The inner map now uses task name as the key.
-     */
-    public void saveAllData(@NotNull String tableName,
-                            @NotNull ConcurrentHashMap<UUID, ConcurrentHashMap<String, String>> allPlayerData,
-                            String prefix) {
-        if (allPlayerData.isEmpty()) {
-            return;
-        }
-
-        String sql = "INSERT INTO " + tableName + "_data (player_id, task_name, task_required) VALUES (?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE task_required = VALUES(task_required)";
-
-        try (Connection conn = libraryData.getDataSource().getConnection()) {
-            conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                int batchCount = 0;
-
-                for (Map.Entry<UUID, ConcurrentHashMap<String, String>> playerEntry : allPlayerData.entrySet()) {
-                    int playerId = getOrCreatePlayerId(playerEntry.getKey(), conn, prefix);
-
-                    for (Map.Entry<String, String> dataEntry : playerEntry.getValue().entrySet()) {
-                        ps.setInt(1, playerId);
-                        ps.setString(2, dataEntry.getKey());
-                        ps.setString(3, dataEntry.getValue());
-                        ps.addBatch();
-
-                        batchCount++;
-                        if (batchCount >= BATCH_SIZE) {
-                            ps.executeBatch();
-                            batchCount = 0;
-                        }
-                    }
-                }
-
-                if (batchCount > 0) {
-                    ps.executeBatch();
-                }
-
-                conn.commit();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            }
-        } catch (SQLException e) {
-            Bukkit.getLogger().severe(prefix + "Failed to perform bulk data save on " + tableName +
-                    ": " + e.getMessage());
-        }
-    }
+//    /**
+//     * Saves data for all players in bulk.
+//     * <p>
+//     * Note: The inner map now uses TaskDetails as values.
+//     */
+//    public void saveAllData(@NotNull String tableName,
+//                            @NotNull ConcurrentHashMap<UUID, ConcurrentHashMap<String, TaskDetails>> allPlayerData,
+//                            String prefix) {
+//        if (allPlayerData.isEmpty()) {
+//            return;
+//        }
+//
+//        String sql = "INSERT INTO " + tableName + "_data (player_id, task_name, task_required, expiration_time) VALUES (?, ?, ?, ?) " +
+//                "ON DUPLICATE KEY UPDATE task_required = VALUES(task_required), expiration_time = VALUES(expiration_time)";
+//
+//        try (Connection conn = libraryData.getDataSource().getConnection()) {
+//            conn.setAutoCommit(false);
+//            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+//                int batchCount = 0;
+//
+//                for (Map.Entry<UUID, ConcurrentHashMap<String, TaskDetails>> playerEntry : allPlayerData.entrySet()) {
+//                    int playerId = getOrCreatePlayerId(playerEntry.getKey(), conn, prefix);
+//
+//                    for (Map.Entry<String, TaskDetails> dataEntry : playerEntry.getValue().entrySet()) {
+//                        ps.setInt(1, playerId);
+//                        ps.setString(2, dataEntry.getKey());
+//                        ps.setString(3, dataEntry.getValue().hashedString);
+//                        ps.setLong(4, dataEntry.getValue().expiration);
+//                        ps.addBatch();
+//
+//                        batchCount++;
+//                        if (batchCount >= BATCH_SIZE) {
+//                            ps.executeBatch();
+//                            batchCount = 0;
+//                        }
+//                    }
+//                }
+//
+//                if (batchCount > 0) {
+//                    ps.executeBatch();
+//                }
+//
+//                conn.commit();
+//            } catch (SQLException e) {
+//                conn.rollback();
+//                throw e;
+//            }
+//        } catch (SQLException e) {
+//            Bukkit.getLogger().severe(prefix + "Failed to perform bulk data save on " + tableName +
+//                    ": " + e.getMessage());
+//        }
+//    }
 
     /**
      * Creates default data entries for a new player.
      * <p>
      * Instead of selecting default task types from a definition table, we now loop through the
-     * cached default task list and insert a row with an empty string for task_required for each task.
+     * cached default task list and insert a row with an empty string for task_required and 0 for expiration_time for each task.
      */
     public void createNewPlayerData(@NotNull UUID uuid, @NotNull String tableName, String prefix) {
         if (defaultTaskList == null || defaultTaskList.isEmpty()) {
@@ -193,7 +195,7 @@ public class TaskDataLib {
             int playerId = getOrCreatePlayerId(uuid, conn, prefix);
 
             String insertQuery =
-                    "INSERT IGNORE INTO " + tableName + "_data (player_id, task_name, task_required) VALUES (?, ?, '')";
+                    "INSERT IGNORE INTO " + tableName + "_data (player_id, task_name, task_required, expiration_time) VALUES (?, ?, '', 0)";
             try (PreparedStatement ps = conn.prepareStatement(insertQuery)) {
                 for (String task : defaultTaskList) {
                     ps.setInt(1, playerId);
@@ -215,12 +217,12 @@ public class TaskDataLib {
     /**
      * Loads data for a single player.
      * <p>
-     * Note: The query now retrieves task_name instead of stat_name.
+     * Note: The result map now uses TaskDetails as values.
      */
-    public ConcurrentHashMap<String, String> loadPlayerData(@NotNull UUID uuid,
-                                                            @NotNull String tableName,
-                                                            String prefix) {
-        ConcurrentHashMap<String, String> playerDataMap = new ConcurrentHashMap<>();
+    public ConcurrentHashMap<String, TaskDetails> loadPlayerData(@NotNull UUID uuid,
+                                                                 @NotNull String tableName,
+                                                                 String prefix) {
+        ConcurrentHashMap<String, TaskDetails> playerDataMap = new ConcurrentHashMap<>();
 
         try (Connection conn = libraryData.getDataSource().getConnection()) {
             // Retrieve playerID using the external vlib_players table
@@ -237,15 +239,16 @@ public class TaskDataLib {
                 }
             }
 
-            // Load the data using task_name as key
-            String loadQuery = "SELECT task_name, task_required FROM " + tableName + "_data WHERE player_id = ?";
+            // Load the data using task_name as key and TaskDetails as value
+            String loadQuery = "SELECT task_name, task_required, expiration_time FROM " + tableName + "_data WHERE player_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(loadQuery)) {
                 ps.setInt(1, playerId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         String taskName = rs.getString("task_name");
                         String taskRequired = rs.getString("task_required");
-                        playerDataMap.put(taskName, taskRequired);
+                        long expirationTime = rs.getLong("expiration_time");
+                        playerDataMap.put(taskName, new TaskDetails(taskRequired, expirationTime));
                     }
                 }
             }
