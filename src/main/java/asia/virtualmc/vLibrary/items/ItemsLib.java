@@ -149,6 +149,17 @@ public class ItemsLib {
         meta.setLore(lore);
     }
 
+    public static String getDisplayName(@NotNull ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return "";
+
+        return meta.getDisplayName();
+    }
+
+    public static int getItemStackAmount(@NotNull ItemStack item) {
+        return item.getAmount();
+    }
+
     public static int getCustomModelData(@NotNull ItemStack item) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return 1;

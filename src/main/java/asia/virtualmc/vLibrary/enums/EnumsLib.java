@@ -5,6 +5,23 @@ public class EnumsLib {
         ADD, SUBTRACT, SET;
     }
 
+    public enum TimeUnits {
+        HOURLY(3600),
+        DAILY(86400),
+        WEEKLY(604800),
+        MONTHLY(2592000);
+
+        private final long seconds;
+
+        TimeUnits(long seconds) {
+            this.seconds = seconds;
+        }
+
+        public long getSeconds() {
+            return seconds;
+        }
+    }
+
     public enum FishingStatistics {
         RANK_ID("rank_idF", 1),
         COMMON_CAUGHT("common_caught", 2),
