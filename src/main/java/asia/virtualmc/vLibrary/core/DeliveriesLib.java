@@ -12,6 +12,8 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.time.Instant;
 import java.util.*;
@@ -134,27 +136,6 @@ public class DeliveriesLib {
                 displayName, 1, lore);
     }
 
-    public static OutlinePane createCustomItemDisplay(Player player, List<ItemStack> items, NamespacedKey ITEM_KEY) {
-        OutlinePane pane = new OutlinePane(0, 0, 9, 3);
-
-        Set<Integer> itemIDs = getAllIDs(items, ITEM_KEY);
-        Map<Integer, Integer> inventoryItems = getInventoryItems(player, itemIDs, ITEM_KEY);
-
-        for (ItemStack item : items) {
-            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
-
-            if (inventoryItems.get(itemID) >= item.getAmount()) {
-                inventoryItems.merge(itemID, -item.getAmount(), Integer::sum);
-                pane.addItem(new GuiItem(item));
-            } else {
-                ItemStack newItem = cloneItem(Material.BARRIER, item);
-                pane.addItem(new GuiItem(newItem));
-            }
-        }
-
-        return pane;
-    }
-
     public static Set<Integer> getAllIDs(List<ItemStack> items, NamespacedKey ITEM_KEY) {
         Set<Integer> itemIDs = new HashSet<>();
 
@@ -166,24 +147,116 @@ public class DeliveriesLib {
         return itemIDs;
     }
 
-    public static boolean compareCustomItems(Player player, List<ItemStack> items, NamespacedKey ITEM_KEY) {
-        Set<Integer> itemIDs = getAllIDs(items, ITEM_KEY);
-        Map<Integer, Integer> inventoryItems = getInventoryItems(player, itemIDs, ITEM_KEY);
+    // Requires Snapshot inventory from InventoryUtils
+    public static Map<Integer, Integer> getInventoryItems(NamespacedKey ITEM_KEY, Map<Integer, ItemStack> snapshot) {
+        Map<Integer, Integer> inventoryItems = new HashMap<>();
+
+        for (ItemStack item : snapshot.values()) {
+            if (item == null) continue;
+
+            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
+            if (itemID > 0) {
+                inventoryItems.merge(itemID, item.getAmount(), Integer::sum);
+            }
+
+        }
+
+        return inventoryItems;
+    }
+
+    // Map<itemID, amount> inventory & List<ItemStack> items (required items)
+    public static boolean hasRequiredItems(NamespacedKey ITEM_KEY, Map<Integer, Integer> inventory, List<ItemStack> items) {
+        Map<Integer, Integer> copy = new HashMap<>(inventory);
 
         for (ItemStack item : items) {
-            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
+            if (item == null) continue;
 
-            if (inventoryItems.get(itemID) >= item.getAmount()) {
-                inventoryItems.merge(itemID, -item.getAmount(), Integer::sum);
-            } else {
-                return false;
+            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
+            if (itemID > 0) {
+                if (copy.get(itemID) >= item.getAmount()) {
+                    copy.merge(itemID, -item.getAmount(), Integer::sum);
+                } else {
+                    return false;
+                }
             }
         }
 
         return true;
     }
 
+    public static OutlinePane getItemDisplay(NamespacedKey ITEM_KEY, Map<Integer, Integer> inventory, List<ItemStack> items) {
+        OutlinePane pane = new OutlinePane(0, 0, 9, 3);
+        Map<Integer, Integer> copy = new HashMap<>(inventory);
+
+        for (ItemStack item : items) {
+            if (item == null) continue;
+
+            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
+            if (itemID > 0) {
+                if (copy.get(itemID) >= item.getAmount()) {
+                    pane.addItem(new GuiItem(item.clone()));
+                    copy.merge(itemID, -item.getAmount(), Integer::sum);
+                } else {
+                    ItemStack newItem = cloneItem(Material.BARRIER, item);
+                    pane.addItem(new GuiItem(newItem));
+                }
+            }
+        }
+
+        return pane;
+    }
+
+    // Map<itemID, amount> to store the total amount of items needed of list of itemStacks
+//    public static Map<Integer, Integer> getItemStackTotal(List<ItemStack> items, NamespacedKey ITEM_KEY) {
+//        Map<Integer, Integer> total = new HashMap<>();
+//
+//        for (ItemStack item : items) {
+//            if (item == null || !item.hasItemMeta()) continue;
+//
+//            PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+//            int itemID = pdc.getOrDefault(ITEM_KEY, PersistentDataType.INTEGER, 0);
+//            if (itemID > 0) {
+//                total.merge(itemID, item.getAmount(), Integer::sum);
+//            }
+//        }
+//
+//        return total;
+//    }
+
+    // Map<Slot Number, ItemStack> & Map<ItemID, Amount>
+//    public static boolean hasRequiredItems(NamespacedKey ITEM_KEY, Map<Integer, ItemStack> inventory, Map<Integer, Integer> items) {
+//        Map<Integer, Integer> copy = new HashMap<>(items);
+//
+//        for (Map.Entry<Integer, ItemStack> entry : inventory.entrySet()) {
+//            ItemStack item = entry.getValue();
+//            if (item == null) continue;
+//
+//            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
+//            if (itemID > 0) {
+//                copy.computeIfPresent(itemID, (k, v) -> v - item.getAmount());
+//            }
+//        }
+//
+//        for (int i : copy.values()) {
+//            if (i > 0) {
+//                return false;
+//            }
+//        }
+//
+//        return true;
+//    }
+
     // For Vanilla Items
+    public static Set<Material> getMaterials(List<ItemStack> items) {
+        Set<Material> materials = new HashSet<>();
+
+        for (ItemStack item : items) {
+            materials.add(item.getType());
+        }
+
+        return materials;
+    }
+
     public static OutlinePane createVanillaItemDisplay(Player player, List<ItemStack> items) {
         OutlinePane pane = new OutlinePane(0, 0, 9, 3);
 
@@ -207,15 +280,6 @@ public class DeliveriesLib {
 
 
 
-    public static Set<Material> getMaterials(List<ItemStack> items) {
-        Set<Material> materials = new HashSet<>();
-
-        for (ItemStack item : items) {
-            materials.add(item.getType());
-        }
-
-        return materials;
-    }
 
     public static ItemStack cloneItem(Material material, ItemStack item) {
         ItemStack newItem = new ItemStack(material, item.getAmount());

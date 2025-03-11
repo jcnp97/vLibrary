@@ -1,11 +1,11 @@
 package asia.virtualmc.vLibrary.utils;
 
-import asia.virtualmc.vLibrary.items.ItemsLib;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +22,37 @@ public class InventoryUtils {
 
             PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
             if (pdc.has(ITEM_KEY)) {
+                snapshot.put(i, item.clone());
+            }
+        }
+
+        return snapshot;
+    }
+
+    public static Map<Integer, ItemStack> createSnapshot(Player player, NamespacedKey ITEM_KEY, Set<Integer> itemIDs) {
+        Map<Integer, ItemStack> snapshot = new HashMap<>();
+
+        for (int i = 0; i < 36; i++) {
+            ItemStack item = player.getInventory().getItem(i);
+            if (item == null || !item.hasItemMeta()) continue;
+
+            PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+            if (itemIDs.contains(pdc.getOrDefault(ITEM_KEY, PersistentDataType.INTEGER, 0))) {
+                snapshot.put(i, item.clone());
+            }
+        }
+
+        return snapshot;
+    }
+
+    public static Map<Integer, ItemStack> createSnapshot(Player player, Set<Material> materials) {
+        Map<Integer, ItemStack> snapshot = new HashMap<>();
+
+        for (int i = 0; i < 36; i++) {
+            ItemStack item = player.getInventory().getItem(i);
+            if (item == null) continue;
+
+            if (materials.contains(item.getType())) {
                 snapshot.put(i, item.clone());
             }
         }
@@ -53,33 +84,4 @@ public class InventoryUtils {
         }
         return true;
     }
-
-    // Map<ItemID, Amount>
-    public static Map<Integer, ItemStack> getInventoryItems(Player player, NamespacedKey ITEM_KEY, Set<Integer> itemIDs) {
-        Map<Integer, ItemStack> inventoryItems = new HashMap<>();
-
-        for (ItemStack item : player.getInventory()) {
-            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
-            if (itemID == 0 || !itemIDs.contains(itemID)) continue;
-
-            inventoryItems.merge(itemID, item.getAmount(), Integer::sum);
-        }
-
-        return inventoryItems;
-    }
-
-    // Map<Material, Amount>
-    public static Map<Material, Integer> getInventoryItems(Player player, Set<Material> materials) {
-        Map<Material, Integer> inventoryItems = new HashMap<>();
-
-        for (ItemStack item : player.getInventory()) {
-            if (materials.contains(item.getType())) {
-                inventoryItems.merge(item.getType(), item.getAmount(), Integer::sum);
-            }
-        }
-
-        return inventoryItems;
-    }
-
-
 }
