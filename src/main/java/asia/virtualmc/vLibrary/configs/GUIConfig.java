@@ -26,6 +26,10 @@ public class GUIConfig {
     // Plugin Exclusives
     public static String RESTORATION_TITLE;
     public static String ARTEFACT_INTERACT_TITLE;
+    public static String DELIVERIES_TITLE;
+    public static String DELIVERIES_CONFIRM;
+    public static String DELIVERIES_NO_CONFIRM;
+
 
     public GUIConfig(@NotNull ConfigManager configManager) {
         this.vlib = configManager.getVlib();
@@ -62,6 +66,11 @@ public class GUIConfig {
             // ARCHAEOLOGY EXCLUSIVES
             RESTORATION_TITLE = gui.getString("guiSettings.artefact-restore-gui-title", "Restore Artefacts GUI");
             ARTEFACT_INTERACT_TITLE = gui.getString("guiSettings.artefact-interact-title", "Item Interaction");
+
+            // FISHING EXCLUSIVES
+            DELIVERIES_TITLE = gui.getString("guiSettings.deliveries-title", "Deliveries GUI");
+            DELIVERIES_CONFIRM = gui.getString("guiSettings.deliveries-confirm", "Deliveries GUI");
+            DELIVERIES_NO_CONFIRM = gui.getString("guiSettings.deliveries-no-confirm", "Deliveries GUI");
         } catch (Exception e) {
             vlib.getLogger().severe("[vLibrary] Couldn't load gui-settings.yml");
             e.printStackTrace();

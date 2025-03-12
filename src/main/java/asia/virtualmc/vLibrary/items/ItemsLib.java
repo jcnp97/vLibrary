@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class ItemsLib {
 
@@ -151,7 +152,11 @@ public class ItemsLib {
 
     public static String getDisplayName(@NotNull ItemStack item) {
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) return "";
+        if (meta == null || !meta.hasDisplayName()) {
+            return Arrays.stream(item.getType().toString().toLowerCase().split("_"))
+                    .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1))
+                    .collect(Collectors.joining(" "));
+        }
 
         return meta.getDisplayName();
     }

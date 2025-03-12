@@ -109,7 +109,7 @@ public class TaskDataLib {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 for (Map.Entry<Integer, TaskDetails> entry : playerData.entrySet()) {
                     ps.setInt(1, playerId);
-                    ps.setByte(2, entry.getKey().byteValue());
+                    ps.setInt(2, entry.getKey().byteValue());
                     ps.setString(3, entry.getValue().hashedString);
                     ps.setLong(4, entry.getValue().expiration);
                     ps.addBatch();
@@ -194,6 +194,9 @@ public class TaskDataLib {
                     while (rs.next()) {
                         int taskId = rs.getByte("task_id");
                         String taskRequired = rs.getString("task_required");
+                        if (taskRequired == null) {
+                            taskRequired = "";
+                        }
                         long expirationTime = rs.getLong("expiration_time");
                         playerDataMap.put(taskId, new TaskDetails(taskRequired, expirationTime));
                     }

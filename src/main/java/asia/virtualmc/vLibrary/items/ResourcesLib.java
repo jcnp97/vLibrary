@@ -199,7 +199,7 @@ public class ResourcesLib {
 
                     // Add PDC data
                     PersistentDataContainer pdc = meta.getPersistentDataContainer();
-                    pdc.set(ITEM_KEY, PersistentDataType.STRING, itemName);
+                    pdc.set(ITEM_KEY, PersistentDataType.INTEGER, itemID);
 
                     // Add PDC data for rarityID and regionID
                     pdc.set(new NamespacedKey(plugin, "rarity_id"), PersistentDataType.INTEGER, rarityID);

@@ -3,17 +3,16 @@ package asia.virtualmc.vLibrary.core;
 import asia.virtualmc.vLibrary.configs.GUIConfig;
 import asia.virtualmc.vLibrary.guis.GUILib;
 import asia.virtualmc.vLibrary.items.ItemsLib;
-import asia.virtualmc.vLibrary.items.ResourcesLib;
 import asia.virtualmc.vLibrary.utils.DigitUtils;
 import com.github.stefvanschie.inventoryframework.gui.GuiItem;
+import com.github.stefvanschie.inventoryframework.gui.type.ChestGui;
 import com.github.stefvanschie.inventoryframework.pane.OutlinePane;
+import com.github.stefvanschie.inventoryframework.pane.StaticPane;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.time.Instant;
 import java.util.*;
@@ -109,7 +108,28 @@ public class DeliveriesLib {
         lore.add("§8§m                                        ");
 
         for (ItemStack item : items) {
-            lore.add("§7• " + ItemsLib.getDisplayName(item) + " §x" + ItemsLib.getItemStackAmount(item));
+            lore.add("§7• " + ItemsLib.getDisplayName(item) + " §fx" + ItemsLib.getItemStackAmount(item));
+        }
+        lore.add("§8§m                                        ");
+        lore.add("§7Expires in: §c" + DigitUtils.formatDuration(duration));
+
+        return lore;
+    }
+
+    public static List<String> getDeliveryLoreVanilla(List<ItemStack> items, long duration) {
+        List<String> lore = new ArrayList<>();
+        Map<ItemStack, Integer> vanillaItems = new HashMap<>();
+
+        for (ItemStack item : items) {
+            ItemStack clone = item.clone();
+            clone.setAmount(1);
+            vanillaItems.merge(clone, item.getAmount(), Integer::sum);
+        }
+
+        lore.add("§8§m                                        ");
+
+        for (Map.Entry<ItemStack, Integer> entry : vanillaItems.entrySet()) {
+            lore.add("§7• " + ItemsLib.getDisplayName(entry.getKey()) + " §fx" + entry.getValue());
         }
         lore.add("§8§m                                        ");
         lore.add("§7Expires in: §c" + DigitUtils.formatDuration(duration));
@@ -130,9 +150,13 @@ public class DeliveriesLib {
         }
 
         String displayName = "§eDelivery #§a" + taskID;
-        List<String> lore = getDeliveryLore(items, expiration - currentTime);
-
-        return GUILib.createLegacyButton(Material.EMERALD,
+        List<String> lore;
+        if (taskID <= 3) {
+            lore = getDeliveryLoreVanilla(items, expiration - currentTime);
+        } else {
+            lore = getDeliveryLore(items, expiration - currentTime);
+        }
+        return GUILib.createLegacyButton(Material.FLOW_BANNER_PATTERN,
                 displayName, 1, lore);
     }
 
@@ -184,67 +208,44 @@ public class DeliveriesLib {
         return true;
     }
 
-    public static OutlinePane getItemDisplay(NamespacedKey ITEM_KEY, Map<Integer, Integer> inventory, List<ItemStack> items) {
-        OutlinePane pane = new OutlinePane(0, 0, 9, 3);
+    public static Pair<OutlinePane, Boolean> getItemDisplay(NamespacedKey ITEM_KEY, Map<Integer, Integer> inventory, List<ItemStack> items) {
+        OutlinePane pane = new OutlinePane(0, 0, 9, 4);
         Map<Integer, Integer> copy = new HashMap<>(inventory);
+        boolean canConfirm = true;
 
         for (ItemStack item : items) {
             if (item == null) continue;
 
             int itemID = ItemsLib.getItemID(item, ITEM_KEY);
             if (itemID > 0) {
-                if (copy.get(itemID) >= item.getAmount()) {
+                if (copy.get(itemID) != null && copy.get(itemID) >= item.getAmount()) {
                     pane.addItem(new GuiItem(item.clone()));
                     copy.merge(itemID, -item.getAmount(), Integer::sum);
                 } else {
                     ItemStack newItem = cloneItem(Material.BARRIER, item);
                     pane.addItem(new GuiItem(newItem));
+                    canConfirm = false;
                 }
             }
         }
 
-        return pane;
+        return Pair.of(pane, canConfirm);
     }
 
-    // Map<itemID, amount> to store the total amount of items needed of list of itemStacks
-//    public static Map<Integer, Integer> getItemStackTotal(List<ItemStack> items, NamespacedKey ITEM_KEY) {
-//        Map<Integer, Integer> total = new HashMap<>();
-//
-//        for (ItemStack item : items) {
-//            if (item == null || !item.hasItemMeta()) continue;
-//
-//            PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
-//            int itemID = pdc.getOrDefault(ITEM_KEY, PersistentDataType.INTEGER, 0);
-//            if (itemID > 0) {
-//                total.merge(itemID, item.getAmount(), Integer::sum);
-//            }
-//        }
-//
-//        return total;
-//    }
+    public static Map<Integer, Integer> convertItemStackToMap(List<ItemStack> items, NamespacedKey ITEM_KEY) {
+        Map<Integer, Integer> requiredItems = new HashMap<>();
 
-    // Map<Slot Number, ItemStack> & Map<ItemID, Amount>
-//    public static boolean hasRequiredItems(NamespacedKey ITEM_KEY, Map<Integer, ItemStack> inventory, Map<Integer, Integer> items) {
-//        Map<Integer, Integer> copy = new HashMap<>(items);
-//
-//        for (Map.Entry<Integer, ItemStack> entry : inventory.entrySet()) {
-//            ItemStack item = entry.getValue();
-//            if (item == null) continue;
-//
-//            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
-//            if (itemID > 0) {
-//                copy.computeIfPresent(itemID, (k, v) -> v - item.getAmount());
-//            }
-//        }
-//
-//        for (int i : copy.values()) {
-//            if (i > 0) {
-//                return false;
-//            }
-//        }
-//
-//        return true;
-//    }
+        for (ItemStack item : items) {
+            if (item == null) continue;
+
+            int itemID = ItemsLib.getItemID(item, ITEM_KEY);
+            if (itemID > 0) {
+                requiredItems.merge(itemID, item.getAmount(), Integer::sum);
+            }
+        }
+
+        return requiredItems;
+    }
 
     // For Vanilla Items
     public static Set<Material> getMaterials(List<ItemStack> items) {
@@ -257,30 +258,58 @@ public class DeliveriesLib {
         return materials;
     }
 
-    public static OutlinePane createVanillaItemDisplay(Player player, List<ItemStack> items) {
-        OutlinePane pane = new OutlinePane(0, 0, 9, 3);
+    // Requires snapshot inventory from InventoryUtils
+    public static Map<Material, Integer> getInventoryItems(Map<Integer, ItemStack> snapshot) {
+        Map<Material, Integer> inventoryItems = new HashMap<>();
 
-        Set<Material> materials = getMaterials(items);
-        Map<Material, Integer> inventoryItems = getInventoryItems(player, materials);
+        for (ItemStack item : snapshot.values()) {
+            if (item == null) continue;
+
+            inventoryItems.merge(item.getType(), item.getAmount(), Integer::sum);
+        }
+
+        return inventoryItems;
+    }
+
+    // Map<Material, amount> inventory & List<Material> items (required items)
+    public static boolean hasRequiredItems(Map<Material, Integer> inventory, List<ItemStack> items) {
+        Map<Material, Integer> copy = new HashMap<>(inventory);
 
         for (ItemStack item : items) {
-            Material material = item.getType();
+            if (item == null) continue;
 
-            if (inventoryItems.get(material) >= item.getAmount()) {
-                inventoryItems.merge(material, -item.getAmount(), Integer::sum);
-                pane.addItem(new GuiItem(item));
+            if (copy.get(item.getType()) >= item.getAmount()) {
+                copy.merge(item.getType(), -item.getAmount(), Integer::sum);
             } else {
-                ItemStack newItem = cloneItem(Material.BARRIER, item);
-                pane.addItem(new GuiItem(newItem));
+                return false;
             }
         }
 
-        return pane;
+        return true;
     }
 
+    public static Pair<OutlinePane, Boolean> getItemDisplay(Map<Material, Integer> inventory, List<ItemStack> items) {
+        OutlinePane pane = new OutlinePane(0, 0, 9, 4);
+        Map<Material, Integer> copy = new HashMap<>(inventory);
+        boolean canConfirm = true;
 
+        for (ItemStack item : items) {
+            if (item == null) continue;
 
+            if (copy.get(item.getType()) != null && copy.get(item.getType()) >= item.getAmount()) {
+                pane.addItem(new GuiItem(item.clone()));
+                copy.merge(item.getType(), -item.getAmount(), Integer::sum);
+            } else {
+                ItemStack newItem = cloneItem(Material.BARRIER, item);
+                pane.addItem(new GuiItem(newItem));
+                canConfirm = false;
+            }
+        }
 
+        return Pair.of(pane, canConfirm);
+    }
+
+    // Miscellaneous Methods
     public static ItemStack cloneItem(Material material, ItemStack item) {
         ItemStack newItem = new ItemStack(material, item.getAmount());
 
@@ -299,5 +328,48 @@ public class DeliveriesLib {
         }
 
         return newItem;
+    }
+
+    public static StaticPane getDeliverButton(boolean canConfirm) {
+        StaticPane staticPane = new StaticPane(0, 0, 9, 4);
+
+        for (int x = 1; x <= 3; x++) {
+            GuiItem guiItem;
+            if (canConfirm) {
+                ItemStack button = GUILib.createConfirmButton();
+                guiItem = new GuiItem(button);
+            } else {
+                ItemStack button = GUILib.createButton(
+                        Material.PAPER, "§cNo enough items!", GUIConfig.INVISIBLE_ITEM);
+                guiItem = new GuiItem(button);
+            }
+            staticPane.addItem(guiItem, x, 3);
+        }
+
+        return  staticPane;
+    }
+
+    public static StaticPane getCloseButton() {
+        StaticPane staticPane = new StaticPane(0, 0, 9, 4);
+
+        for (int x = 5; x <= 7; x++) {
+            ItemStack closeButton = GUILib.createCancelButton();
+            staticPane.addItem(new GuiItem(closeButton), x, 3);
+        }
+
+        return staticPane;
+    }
+
+    public static ChestGui getGUIDisplay(boolean canConfirm) {
+        ChestGui gui;
+        if (canConfirm) {
+            gui = new ChestGui(4, GUIConfig.DELIVERIES_CONFIRM);
+        } else {
+            gui = new ChestGui(4, GUIConfig.DELIVERIES_NO_CONFIRM);
+        }
+
+        gui.setOnGlobalClick(event -> event.setCancelled(true));
+
+        return gui;
     }
 }
